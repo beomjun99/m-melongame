@@ -59,3 +59,18 @@ npm run dev --workspace server
 ```bash
 npm run typecheck
 ```
+
+## PostgreSQL 설정
+
+서버는 `server/.env`의 `DATABASE_URL`을 사용합니다.
+
+```bash
+copy server\.env.example server\.env
+npm run db:init --workspace server
+```
+
+DB 연결 확인:
+
+```text
+GET http://localhost:4000/api/health/db
+```
