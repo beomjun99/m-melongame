@@ -15,7 +15,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "multer": "^2.3.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

@@ -5,7 +5,12 @@ type BattleLobbyProps = {
 };
 
 export function BattleLobby({ onBackToTitle }: BattleLobbyProps) {
-  const { socketUrl } = useBattle();
+  const { connectionStatus, socketUrl } = useBattle();
+  const connectionLabel = {
+    CONNECTING: '연결 중',
+    CONNECTED: '연결됨',
+    DISCONNECTED: '연결 끊김'
+  }[connectionStatus];
 
   return (
     <section className="battle-lobby" aria-label="Battle mode">
@@ -14,6 +19,7 @@ export function BattleLobby({ onBackToTitle }: BattleLobbyProps) {
         <div className="battle-status-panel">
           <span className="label">Socket endpoint</span>
           <strong>{socketUrl}</strong>
+          <span className={`socket-status ${connectionStatus.toLowerCase()}`}>{connectionLabel}</span>
         </div>
       </div>
 
