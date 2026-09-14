@@ -6,7 +6,6 @@ export type ObjectLevelConfig = {
   level: ObjectLevel;
   radius: number;
   score: number;
-  color: string;
 };
 
 export type MergeResult = {

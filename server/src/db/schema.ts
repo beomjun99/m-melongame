@@ -19,4 +19,24 @@ create index if not exists game_results_score_idx
 
 create index if not exists game_results_user_played_at_idx
   on game_results (user_id, played_at desc);
+
+create table if not exists themes (
+  id bigserial primary key,
+  user_id bigint references users(id) on delete cascade,
+  name varchar(80) not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop index if exists themes_default_idx;
+
+create table if not exists theme_items (
+  id bigserial primary key,
+  theme_id bigint not null references themes(id) on delete cascade,
+  level integer not null check (level between 1 and 11),
+  image_url text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (theme_id, level)
+);
 `;

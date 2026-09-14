@@ -7,16 +7,20 @@ import { Ranking } from './components/Ranking';
 import { RestartConfirmModal } from './components/RestartConfirmModal';
 import { ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
+import { ThemeSettings } from './components/ThemeSettings';
 import { BOARD_CONFIG } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
 import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
-import { getRankings, saveGameResult, type RankingEntry } from './services/api';
+import { createTheme, getDefaultTheme, getRankings, saveGameResult, uploadThemeImage, type RankingEntry } from './services/api';
+import { DEFAULT_THEME, mergeThemeWithDefault } from './theme/config';
+import type { GameTheme } from './theme/types';
 
 export default function App() {
   const [currentObject, setCurrentObject] = useState(() => getRandomSpawnObject());
   const [upcomingObject, setUpcomingObject] = useState(() => getRandomSpawnObject());
   const [gameState, setGameState] = useState<GameState>('READY');
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
+  const [isThemeSettingsOpen, setIsThemeSettingsOpen] = useState(false);
   const [gameId, setGameId] = useState(0);
   const [score, setScore] = useState(0);
   const [maxLevel, setMaxLevel] = useState<ObjectLevel>(currentObject.level);
@@ -29,6 +33,9 @@ export default function App() {
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [volume, setVolume] = useState(80);
   const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
+  const [theme, setTheme] = useState<GameTheme>(DEFAULT_THEME);
+  const [themeMessage, setThemeMessage] = useState<string | null>(null);
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -47,6 +54,30 @@ export default function App() {
   useEffect(() => {
     void loadRankings();
   }, [loadRankings]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTheme() {
+      try {
+        const response = await getDefaultTheme();
+
+        if (isActive) {
+          setTheme(mergeThemeWithDefault(response.theme));
+        }
+      } catch {
+        if (isActive) {
+          setTheme(DEFAULT_THEME);
+        }
+      }
+    }
+
+    void loadTheme();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleMerge = useCallback((result: MergeResult) => {
     setScore((currentScore) => currentScore + result.score);
@@ -98,6 +129,12 @@ export default function App() {
     setGameState('READY');
   }, []);
 
+  const handleOpenThemeSettings = useCallback(() => {
+    setIsThemeSettingsOpen(true);
+    setThemeMessage(null);
+    setGameState('READY');
+  }, []);
+
   const handleRestart = useCallback(() => {
     resetGame();
     setGameState('PLAYING');
@@ -111,8 +148,37 @@ export default function App() {
   const handleGoToTitle = useCallback(() => {
     resetGame();
     setSelectedMode(null);
+    setIsThemeSettingsOpen(false);
     setGameState('READY');
   }, [resetGame]);
+
+  const handleSaveTheme = useCallback(
+    async (name: string, filesByLevel: Map<number, File>) => {
+      setIsSavingTheme(true);
+      setThemeMessage(null);
+
+      try {
+        const createdTheme = await createTheme(name);
+        let nextTheme = createdTheme.theme;
+
+        for (const [level, file] of filesByLevel) {
+          const response = await uploadThemeImage(nextTheme.id, level as ObjectLevel, file);
+          nextTheme = mergeThemeWithDefault(response.theme);
+        }
+
+        setTheme(nextTheme);
+        setThemeMessage('스킨을 저장했습니다.');
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+        setThemeMessage(`스킨 저장에 실패했습니다. ${message}`);
+        return false;
+      } finally {
+        setIsSavingTheme(false);
+      }
+    },
+    [theme]
+  );
 
   const handleSaveResult = useCallback(
     async (nickname: string) => {
@@ -146,7 +212,15 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      {gameState === 'READY' && selectedMode !== 'BATTLE' ? (
+      {gameState === 'READY' && isThemeSettingsOpen ? (
+        <ThemeSettings
+          theme={theme}
+          isSaving={isSavingTheme}
+          message={themeMessage}
+          onBack={handleGoToTitle}
+          onSave={handleSaveTheme}
+        />
+      ) : gameState === 'READY' && selectedMode !== 'BATTLE' ? (
         <StartScreen
           rankings={rankings}
           isRankingLoading={isRankingLoading}
@@ -155,6 +229,7 @@ export default function App() {
           onRefreshRankings={loadRankings}
           onStartSingleGame={handleStartSingleGame}
           onSelectBattleMode={handleSelectBattleMode}
+          onOpenThemeSettings={handleOpenThemeSettings}
           onToggleRankings={() => setShowStartRankings((currentValue) => !currentValue)}
         />
       ) : gameState === 'READY' && selectedMode === 'BATTLE' ? (
@@ -165,6 +240,7 @@ export default function App() {
             score={score}
             upcomingObject={upcomingObject}
             maxLevel={maxLevel}
+            theme={theme}
             onPause={handlePause}
             onRequestRestart={handleRequestRestart}
           />
@@ -175,6 +251,7 @@ export default function App() {
             height={BOARD_CONFIG.height}
             gameState={gameState}
             currentObject={currentObject}
+            theme={theme}
             onGameOver={handleGameOver}
             onMerge={handleMerge}
             onObjectDropped={handleObjectDropped}

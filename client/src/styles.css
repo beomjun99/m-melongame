@@ -171,6 +171,9 @@ body {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .inline-icon-controls {
@@ -236,6 +239,9 @@ body {
   line-height: 1;
   opacity: 0.8;
   pointer-events: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   transform: translate(-50%, -50%);
 }
 
@@ -523,4 +529,92 @@ body {
 .ranking-table th {
   color: #64748b;
   font-weight: 700;
+}
+
+.theme-settings {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.theme-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.theme-settings-header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.theme-settings-header button,
+.theme-save-button {
+  border: 0;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
+.theme-save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.theme-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.theme-name-field {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.theme-name-field input {
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.theme-level-row {
+  display: grid;
+  grid-template-columns: 76px 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  font-weight: 700;
+}
+
+.theme-level-row input {
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+}
+
+.theme-preview {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #1f2937;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }

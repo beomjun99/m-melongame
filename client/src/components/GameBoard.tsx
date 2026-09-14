@@ -12,12 +12,16 @@ import { registerMergeCollisionHandler } from '../game/collision';
 import { registerGameOverWatcher } from '../game/gameOver';
 import { clampDropX, createObjectBody } from '../game/spawn';
 import type { GameState, MergeResult, ObjectLevelConfig } from '../game/types';
+import { getFruitSkin } from '../theme/config';
+import { preloadThemeImages } from '../theme/imageCache';
+import type { GameTheme } from '../theme/types';
 
 type GameBoardProps = {
   width: number;
   height: number;
   gameState: GameState;
   currentObject: ObjectLevelConfig;
+  theme: GameTheme;
   onGameOver: () => void;
   onMerge: (result: MergeResult) => void;
   onObjectDropped: (object: ObjectLevelConfig) => void;
@@ -28,6 +32,7 @@ export function GameBoard({
   height,
   gameState,
   currentObject,
+  theme,
   onGameOver,
   onMerge,
   onObjectDropped
@@ -43,6 +48,7 @@ export function GameBoard({
   const onGameOverRef = useRef(onGameOver);
   const onMergeRef = useRef(onMerge);
   const onObjectDroppedRef = useRef(onObjectDropped);
+  const themeRef = useRef(theme);
   const [dropX, setDropX] = useState(() => width / 2);
   const [canDrop, setCanDrop] = useState(true);
 
@@ -72,6 +78,11 @@ export function GameBoard({
   }, [onObjectDropped]);
 
   useEffect(() => {
+    themeRef.current = theme;
+    void preloadThemeImages(theme.fruits.map((skin) => skin.imageUrl).filter((imageUrl): imageUrl is string => Boolean(imageUrl)));
+  }, [theme]);
+
+  useEffect(() => {
     setDropX((currentDropX) => clampDropX(currentDropX, currentObject.radius, width));
   }, [currentObject.radius, width]);
 
@@ -85,6 +96,7 @@ export function GameBoard({
     engineRef.current = engine;
     cleanupCollisionRef.current = registerMergeCollisionHandler({
       engine,
+      theme: themeRef.current,
       onMerge: (result) => onMergeRef.current(result)
     });
     cleanupGameOverRef.current = registerGameOverWatcher({
@@ -194,7 +206,7 @@ export function GameBoard({
       return;
     }
 
-    const body = createObjectBody(currentObject, dropX, DROP_CONFIG.spawnY);
+    const body = createObjectBody(currentObject, dropX, DROP_CONFIG.spawnY, getFruitSkin(themeRef.current, currentObject.level));
     Composite.add(engine.world, body);
     onObjectDroppedRef.current(currentObject);
     setCanDrop(false);
@@ -208,6 +220,8 @@ export function GameBoard({
       cooldownTimerRef.current = null;
     }, DROP_CONFIG.cooldownMs);
   };
+
+  const currentSkin = getFruitSkin(theme, currentObject.level);
 
   return (
     <section className="board-section" aria-label="Game board">
@@ -226,7 +240,8 @@ export function GameBoard({
             top: DROP_CONFIG.previewY,
             width: currentObject.radius * 2,
             height: currentObject.radius * 2,
-            backgroundColor: currentObject.color
+            backgroundColor: currentSkin.color,
+            backgroundImage: currentSkin.imageUrl ? `url(${currentSkin.imageUrl})` : undefined
           }}
           aria-hidden="true"
         >

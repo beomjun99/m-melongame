@@ -74,3 +74,10 @@ DB 연결 확인:
 ```text
 GET http://localhost:4000/api/health/db
 ```
+
+## 커스텀 테마 이미지
+
+캐릭터 이미지는 PostgreSQL에 binary로 저장하지 않고 `server/uploads/`에 저장합니다.
+DB의 `themes`, `theme_items` 테이블에는 Level별 이미지 URL만 저장합니다.
+
+지원 형식은 PNG, JPG/JPEG, WebP이며 기본 파일 크기 제한은 2MB입니다.

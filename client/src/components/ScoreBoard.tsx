@@ -1,9 +1,12 @@
 import type { ObjectLevel, ObjectLevelConfig } from '../game/types';
+import { getFruitSkin } from '../theme/config';
+import type { GameTheme } from '../theme/types';
 
 type ScoreBoardProps = {
   score: number;
   upcomingObject: ObjectLevelConfig;
   maxLevel: ObjectLevel;
+  theme: GameTheme;
   onPause: () => void;
   onRequestRestart: () => void;
 };
@@ -12,9 +15,12 @@ export function ScoreBoard({
   score,
   upcomingObject,
   maxLevel,
+  theme,
   onPause,
   onRequestRestart
 }: ScoreBoardProps) {
+  const upcomingSkin = getFruitSkin(theme, upcomingObject.level);
+
   return (
     <section className="top-bar" aria-label="Game status">
       <div>
@@ -27,7 +33,8 @@ export function ScoreBoard({
           <span
             className="next-object-circle"
             style={{
-              backgroundColor: upcomingObject.color
+              backgroundColor: upcomingSkin.color,
+              backgroundImage: upcomingSkin.imageUrl ? `url(${upcomingSkin.imageUrl})` : undefined
             }}
           >
             {upcomingObject.level}

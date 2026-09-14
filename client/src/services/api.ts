@@ -1,4 +1,5 @@
 import type { ObjectLevel } from '../game/types';
+import type { GameTheme } from '../theme/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
@@ -23,19 +24,44 @@ export type SaveResultInput = {
 };
 
 async function requestJson<T>(path: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
-    },
+    headers: isFormData
+      ? options?.headers
+      : {
+          'Content-Type': 'application/json',
+          ...options?.headers
+        },
     ...options
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    let errorMessage = `API request failed with status ${response.status}`;
+
+    try {
+      const errorBody = await response.json() as { error?: unknown };
+
+      if (typeof errorBody.error === 'string') {
+        errorMessage = errorBody.error;
+      }
+    } catch {
+      // Keep the HTTP status fallback when the response is not JSON.
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json() as Promise<T>;
+}
+
+function normalizeTheme(theme: GameTheme): GameTheme {
+  return {
+    ...theme,
+    fruits: theme.fruits.map((skin) => ({
+      ...skin,
+      imageUrl: skin.imageUrl?.startsWith('/') ? new URL(skin.imageUrl, API_BASE_URL).toString() : skin.imageUrl
+    }))
+  };
 }
 
 export async function saveGameResult(input: SaveResultInput) {
@@ -53,4 +79,37 @@ export async function getUserResults(nickname: string) {
   return requestJson<{ results: GameResultEntry[] }>(
     `/api/users/${encodeURIComponent(nickname)}/results`
   );
+}
+
+export async function getDefaultTheme() {
+  const response = await requestJson<{ theme: GameTheme }>('/api/themes/default');
+
+  return {
+    theme: normalizeTheme(response.theme)
+  };
+}
+
+export async function createTheme(name: string) {
+  const response = await requestJson<{ theme: GameTheme }>('/api/themes', {
+    method: 'POST',
+    body: JSON.stringify({ name })
+  });
+
+  return {
+    theme: normalizeTheme(response.theme)
+  };
+}
+
+export async function uploadThemeImage(themeId: string, level: ObjectLevel, file: File) {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await requestJson<{ theme: GameTheme }>(`/api/themes/${encodeURIComponent(themeId)}/images/${level}`, {
+    method: 'POST',
+    body: formData
+  });
+
+  return {
+    theme: normalizeTheme(response.theme)
+  };
 }

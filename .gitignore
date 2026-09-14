@@ -5,3 +5,5 @@ dist/
 .env.local
 npm-debug.log*
 coverage/
+server/uploads/
+server-dev.log

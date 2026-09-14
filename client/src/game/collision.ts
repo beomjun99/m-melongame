@@ -2,11 +2,14 @@ import { Composite, Engine, Events, type Body, type IEventCollision } from 'matt
 import { OBJECT_LEVELS } from './config';
 import { createObjectBody } from './spawn';
 import type { MergeResult, ObjectLevel, ObjectLevelConfig } from './types';
+import { getFruitSkin } from '../theme/config';
+import type { GameTheme } from '../theme/types';
 
 type CollisionCleanup = () => void;
 
 type MergeHandlerOptions = {
   engine: Engine;
+  theme: GameTheme;
   onMerge?: (result: MergeResult) => void;
 };
 
@@ -34,7 +37,7 @@ function getObjectConfig(level: ObjectLevel): ObjectLevelConfig {
   return config;
 }
 
-export function registerMergeCollisionHandler({ engine, onMerge }: MergeHandlerOptions): CollisionCleanup {
+export function registerMergeCollisionHandler({ engine, theme, onMerge }: MergeHandlerOptions): CollisionCleanup {
   const mergingBodyIds = new Set<number>();
 
   const handleCollisionStart = (event: IEventCollision<Engine>) => {
@@ -67,7 +70,7 @@ export function registerMergeCollisionHandler({ engine, onMerge }: MergeHandlerO
 
       if (levelA < 11) {
         const nextConfig = getObjectConfig((levelA + 1) as ObjectLevel);
-        const mergedBody = createObjectBody(nextConfig, x, y);
+        const mergedBody = createObjectBody(nextConfig, x, y, getFruitSkin(theme, nextConfig.level));
 
         Composite.add(engine.world, mergedBody);
         onMerge?.({

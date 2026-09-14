@@ -9,6 +9,7 @@ type StartScreenProps = {
   onRefreshRankings: () => void;
   onStartSingleGame: () => void;
   onSelectBattleMode: () => void;
+  onOpenThemeSettings: () => void;
   onToggleRankings: () => void;
 };
 
@@ -20,6 +21,7 @@ export function StartScreen({
   onRefreshRankings,
   onStartSingleGame,
   onSelectBattleMode,
+  onOpenThemeSettings,
   onToggleRankings
 }: StartScreenProps) {
   return (
@@ -44,7 +46,7 @@ export function StartScreen({
         <button className="menu-banner" type="button" onClick={onToggleRankings}>
           점수 순위
         </button>
-        <button className="menu-banner disabled" type="button" disabled>
+        <button className="menu-banner" type="button" onClick={onOpenThemeSettings}>
           스킨변경
         </button>
         <button className="menu-banner disabled" type="button" disabled>
