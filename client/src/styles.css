@@ -29,6 +29,12 @@ body {
   gap: 16px;
 }
 
+.battle-lobby {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 16px;
+}
+
 .title-panel {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -58,6 +64,18 @@ body {
   color: #475569;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.battle-status-panel {
+  min-width: 0;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.battle-status-panel strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 15px;
 }
 
 .start-menu {

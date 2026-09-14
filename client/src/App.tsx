@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { BattleLobby } from './components/BattleLobby';
 import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
@@ -8,13 +9,14 @@ import { ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
 import { BOARD_CONFIG } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
-import type { GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
+import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
 import { getRankings, saveGameResult, type RankingEntry } from './services/api';
 
 export default function App() {
   const [currentObject, setCurrentObject] = useState(() => getRandomSpawnObject());
   const [upcomingObject, setUpcomingObject] = useState(() => getRandomSpawnObject());
   const [gameState, setGameState] = useState<GameState>('READY');
+  const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
   const [gameId, setGameId] = useState(0);
   const [score, setScore] = useState(0);
   const [maxLevel, setMaxLevel] = useState<ObjectLevel>(currentObject.level);
@@ -85,10 +87,16 @@ export default function App() {
     setSaveMessage(null);
   }, []);
 
-  const handleStartGame = useCallback(() => {
+  const handleStartSingleGame = useCallback(() => {
+    setSelectedMode('SINGLE');
     resetGame();
     setGameState('PLAYING');
   }, [resetGame]);
+
+  const handleSelectBattleMode = useCallback(() => {
+    setSelectedMode('BATTLE');
+    setGameState('READY');
+  }, []);
 
   const handleRestart = useCallback(() => {
     resetGame();
@@ -102,6 +110,7 @@ export default function App() {
 
   const handleGoToTitle = useCallback(() => {
     resetGame();
+    setSelectedMode(null);
     setGameState('READY');
   }, [resetGame]);
 
@@ -137,16 +146,19 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      {gameState === 'READY' ? (
+      {gameState === 'READY' && selectedMode !== 'BATTLE' ? (
         <StartScreen
           rankings={rankings}
           isRankingLoading={isRankingLoading}
           rankingError={rankingError}
           showRankings={showStartRankings}
           onRefreshRankings={loadRankings}
-          onStartGame={handleStartGame}
+          onStartSingleGame={handleStartSingleGame}
+          onSelectBattleMode={handleSelectBattleMode}
           onToggleRankings={() => setShowStartRankings((currentValue) => !currentValue)}
         />
+      ) : gameState === 'READY' && selectedMode === 'BATTLE' ? (
+        <BattleLobby onBackToTitle={handleGoToTitle} />
       ) : (
         <>
           <ScoreBoard

@@ -7,7 +7,8 @@ type StartScreenProps = {
   rankingError: string | null;
   showRankings: boolean;
   onRefreshRankings: () => void;
-  onStartGame: () => void;
+  onStartSingleGame: () => void;
+  onSelectBattleMode: () => void;
   onToggleRankings: () => void;
 };
 
@@ -17,7 +18,8 @@ export function StartScreen({
   rankingError,
   showRankings,
   onRefreshRankings,
-  onStartGame,
+  onStartSingleGame,
+  onSelectBattleMode,
   onToggleRankings
 }: StartScreenProps) {
   return (
@@ -33,8 +35,11 @@ export function StartScreen({
       </div>
 
       <nav className="start-menu" aria-label="Main menu">
-        <button className="menu-banner primary" type="button" onClick={onStartGame}>
-          게임 시작
+        <button className="menu-banner primary" type="button" onClick={onStartSingleGame}>
+          싱글 플레이
+        </button>
+        <button className="menu-banner" type="button" onClick={onSelectBattleMode}>
+          배틀 모드
         </button>
         <button className="menu-banner" type="button" onClick={onToggleRankings}>
           점수 순위
