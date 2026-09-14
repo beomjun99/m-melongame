@@ -5,7 +5,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
 import { Ranking } from './components/Ranking';
 import { RestartConfirmModal } from './components/RestartConfirmModal';
-import { ScoreBoard } from './components/ScoreBoard';
+import { GameSidePanel, ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
 import { ThemeSettings } from './components/ThemeSettings';
 import { BOARD_CONFIG } from './game/config';
@@ -236,26 +236,33 @@ export default function App() {
         <BattleLobby onBackToTitle={handleGoToTitle} />
       ) : (
         <>
-          <ScoreBoard
-            score={score}
-            upcomingObject={upcomingObject}
-            maxLevel={maxLevel}
-            theme={theme}
-            onPause={handlePause}
-            onRequestRestart={handleRequestRestart}
-          />
+          <div className="game-play-layout">
+            <div className="game-main-column">
+              <ScoreBoard
+                highScore={rankings[0]?.score ?? 0}
+                score={score}
+              />
 
-          <GameBoard
-            key={gameId}
-            width={BOARD_CONFIG.width}
-            height={BOARD_CONFIG.height}
-            gameState={gameState}
-            currentObject={currentObject}
-            theme={theme}
-            onGameOver={handleGameOver}
-            onMerge={handleMerge}
-            onObjectDropped={handleObjectDropped}
-          />
+              <GameBoard
+                key={gameId}
+                width={BOARD_CONFIG.width}
+                height={BOARD_CONFIG.height}
+                gameState={gameState}
+                currentObject={currentObject}
+                theme={theme}
+                onGameOver={handleGameOver}
+                onMerge={handleMerge}
+                onObjectDropped={handleObjectDropped}
+              />
+            </div>
+
+            <GameSidePanel
+              upcomingObject={upcomingObject}
+              theme={theme}
+              onPause={handlePause}
+              onRequestRestart={handleRequestRestart}
+            />
+          </div>
 
           <Ranking
             rankings={rankings}
