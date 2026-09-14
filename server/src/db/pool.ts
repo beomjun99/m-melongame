@@ -1,8 +1,32 @@
 import pg from 'pg';
 import { env } from '../config/env.js';
 
+function shouldUseSsl(connectionString: string | undefined) {
+  if (env.databaseSsl !== null) {
+    return env.databaseSsl;
+  }
+
+  if (!connectionString) {
+    return false;
+  }
+
+  try {
+    const databaseUrl = new URL(connectionString);
+    const sslMode = databaseUrl.searchParams.get('sslmode');
+
+    return sslMode === 'require' || databaseUrl.hostname.includes('supabase');
+  } catch {
+    return false;
+  }
+}
+
 export const pool = new pg.Pool({
   connectionString: env.databaseUrl,
+  ssl: shouldUseSsl(env.databaseUrl)
+    ? {
+        rejectUnauthorized: false
+      }
+    : undefined,
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000

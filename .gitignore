@@ -1,4 +1,5 @@
 node_modules/
+.tools/
 dist/
 *.tsbuildinfo
 .env
@@ -9,3 +10,5 @@ server/uploads/
 server-dev.log
 client-dev.log
 server-start.log
+cloudflared.log
+cloudflared-error.log

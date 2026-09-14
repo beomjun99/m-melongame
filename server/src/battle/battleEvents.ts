@@ -1,6 +1,7 @@
 export const SOCKET_EVENTS = {
   ROOM_CREATE: 'battle:room:create',
   ROOM_JOIN: 'battle:room:join',
+  ROOM_UPDATE: 'battle:room:update',
   READY: 'battle:ready',
   START: 'battle:start',
   MERGE: 'battle:merge',
