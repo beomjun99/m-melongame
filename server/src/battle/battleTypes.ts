@@ -15,6 +15,7 @@ export type BattleRoom = {
   status: BattleStatus;
   players: BattlePlayer[];
   createdAt: number;
+  countdownStartedAt: number | null;
 };
 
 export type BattlePlayerState = {
@@ -41,3 +42,12 @@ export type BattleActionResponse =
       ok: false;
       error: string;
     };
+
+export type BattleCountdownPayload = {
+  value: 3 | 2 | 1 | 'START';
+};
+
+export type BattleStartPayload = {
+  roomId: string;
+  startedAt: number;
+};

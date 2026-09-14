@@ -96,7 +96,8 @@ export function createBattleRoom(socketId: string, nicknameValue: unknown) {
     roomId,
     status: 'WAITING',
     players: [createPlayer(socketId, nickname)],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    countdownStartedAt: null
   };
 
   rooms.set(roomId, room);
@@ -165,7 +166,57 @@ export function removePlayerFromBattleRoom(socketId: string) {
 
   if (room.status === 'READY') {
     room.status = 'WAITING';
+    room.countdownStartedAt = null;
   }
+
+  return room;
+}
+
+export function setPlayerReady(socketId: string) {
+  const room = getRoomForSocket(socketId);
+
+  if (!room) {
+    return { room: null, error: '참가 중인 방이 없습니다.' };
+  }
+
+  if (room.status !== 'READY') {
+    return { room: null, error: '두 플레이어가 모두 입장해야 준비할 수 있습니다.' };
+  }
+
+  const player = room.players.find((roomPlayer) => roomPlayer.socketId === socketId);
+
+  if (!player) {
+    return { room: null, error: '방의 플레이어를 찾을 수 없습니다.' };
+  }
+
+  player.ready = true;
+
+  return { room, error: null };
+}
+
+export function canStartCountdown(room: BattleRoom) {
+  return room.status === 'READY'
+    && room.players.length === MAX_PLAYERS_PER_ROOM
+    && room.players.every((player) => player.ready)
+    && room.countdownStartedAt === null;
+}
+
+export function markCountdownStarted(room: BattleRoom) {
+  room.countdownStartedAt = Date.now();
+}
+
+export function markRoomPlaying(roomId: string) {
+  const room = rooms.get(roomId);
+
+  if (!room || room.status !== 'READY' || room.players.length !== MAX_PLAYERS_PER_ROOM) {
+    return null;
+  }
+
+  if (!room.players.every((player) => player.ready)) {
+    return null;
+  }
+
+  room.status = 'PLAYING';
 
   return room;
 }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BattleLobby } from './components/BattleLobby';
+import type { BattleStartPayload } from './battle/battleTypes';
+import { useBattle } from './battle/useBattle';
 import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
@@ -40,6 +42,7 @@ export default function App() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -162,6 +165,12 @@ export default function App() {
     setSelectedMode('BATTLE');
     setGameState('READY');
   }, []);
+
+  const handleBattleStart = useCallback((_payload: BattleStartPayload) => {
+    resetGame();
+    setSelectedMode('BATTLE');
+    setGameState('PLAYING');
+  }, [resetGame]);
 
   const handleOpenThemeSettings = useCallback(() => {
     setIsThemeSettingsOpen(true);
@@ -328,7 +337,11 @@ export default function App() {
           onToggleRankings={() => setShowStartRankings((currentValue) => !currentValue)}
         />
       ) : gameState === 'READY' && selectedMode === 'BATTLE' ? (
-        <BattleLobby onBackToTitle={handleGoToTitle} />
+        <BattleLobby
+          battle={battle}
+          onBattleStart={handleBattleStart}
+          onBackToTitle={handleGoToTitle}
+        />
       ) : (
         <>
           <div className="game-play-layout">

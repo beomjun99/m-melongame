@@ -1,28 +1,41 @@
-import { useState } from 'react';
-import { useBattle } from '../battle/useBattle';
+import { useEffect, useState } from 'react';
+import type { BattleStartPayload } from '../battle/battleTypes';
+import type { useBattle } from '../battle/useBattle';
 
 type BattleLobbyProps = {
+  battle: ReturnType<typeof useBattle>;
+  onBattleStart: (payload: BattleStartPayload) => void;
   onBackToTitle: () => void;
 };
 
-export function BattleLobby({ onBackToTitle }: BattleLobbyProps) {
+export function BattleLobby({ battle, onBattleStart, onBackToTitle }: BattleLobbyProps) {
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const {
     connectionStatus,
+    countdown,
     createRoom,
     errorMessage,
     isRoomActionPending,
     joinRoom,
+    markReady,
     room,
-    socketUrl
-  } = useBattle();
+    socketUrl,
+    startSignal
+  } = battle;
   const connectionLabel = {
     CONNECTING: '연결 중',
     CONNECTED: '연결됨',
     DISCONNECTED: '연결 끊김'
   }[connectionStatus];
   const canSubmit = connectionStatus === 'CONNECTED' && !isRoomActionPending && nickname.trim().length > 0;
+  const canReady = room?.status === 'READY' && !room.self?.ready && !isRoomActionPending;
+
+  useEffect(() => {
+    if (startSignal) {
+      onBattleStart(startSignal);
+    }
+  }, [onBattleStart, startSignal]);
 
   return (
     <section className="battle-lobby" aria-label="Battle mode">
@@ -87,9 +100,23 @@ export function BattleLobby({ onBackToTitle }: BattleLobbyProps) {
             <span className="label">Room Code</span>
             <strong>{room.roomId}</strong>
             <span>상태: {room.status}</span>
-            <span>나: {room.self?.nickname ?? '-'}</span>
-            <span>상대: {room.opponent?.nickname ?? '대기 중'}</span>
+            <span>나: {room.self?.nickname ?? '-'} {room.self?.ready ? '(Ready)' : ''}</span>
+            <span>상대: {room.opponent?.nickname ?? '대기 중'} {room.opponent?.ready ? '(Ready)' : ''}</span>
+            {countdown ? <span className="battle-countdown">{countdown}</span> : null}
           </div>
+        ) : null}
+
+        {room ? (
+          <button
+            className="menu-banner primary"
+            type="button"
+            disabled={!canReady}
+            onClick={() => {
+              void markReady();
+            }}
+          >
+            {room.self?.ready ? '준비 완료' : 'Ready'}
+          </button>
         ) : null}
       </div>
 

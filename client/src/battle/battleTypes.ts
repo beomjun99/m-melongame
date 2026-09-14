@@ -24,3 +24,12 @@ export type BattleActionResponse =
       ok: false;
       error: string;
     };
+
+export type BattleCountdownPayload = {
+  value: 3 | 2 | 1 | 'START';
+};
+
+export type BattleStartPayload = {
+  roomId: string;
+  startedAt: number;
+};

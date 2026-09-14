@@ -136,6 +136,19 @@ body {
   letter-spacing: 0;
 }
 
+.battle-countdown {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  margin-top: 6px;
+  border: 1px solid #111827;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 900;
+}
+
 .start-menu {
   display: grid;
   gap: 10px;
