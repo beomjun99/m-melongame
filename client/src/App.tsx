@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
+import { PauseModal } from './components/PauseModal';
 import { Ranking } from './components/Ranking';
+import { RestartConfirmModal } from './components/RestartConfirmModal';
 import { ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
 import { BOARD_CONFIG } from './game/config';
@@ -23,6 +25,8 @@ export default function App() {
   const [showStartRankings, setShowStartRankings] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSavingResult, setIsSavingResult] = useState(false);
+  const [volume, setVolume] = useState(80);
+  const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -61,6 +65,14 @@ export default function App() {
     setGameState('GAME_OVER');
   }, []);
 
+  const handlePause = useCallback(() => {
+    setGameState('PAUSED');
+  }, []);
+
+  const handleResume = useCallback(() => {
+    setGameState('PLAYING');
+  }, []);
+
   const resetGame = useCallback(() => {
     const freshCurrentObject = getRandomSpawnObject();
 
@@ -81,6 +93,16 @@ export default function App() {
   const handleRestart = useCallback(() => {
     resetGame();
     setGameState('PLAYING');
+    setIsRestartConfirmOpen(false);
+  }, [resetGame]);
+
+  const handleRequestRestart = useCallback(() => {
+    setIsRestartConfirmOpen(true);
+  }, []);
+
+  const handleGoToTitle = useCallback(() => {
+    resetGame();
+    setGameState('READY');
   }, [resetGame]);
 
   const handleSaveResult = useCallback(
@@ -127,7 +149,13 @@ export default function App() {
         />
       ) : (
         <>
-          <ScoreBoard score={score} upcomingObject={upcomingObject} maxLevel={maxLevel} />
+          <ScoreBoard
+            score={score}
+            upcomingObject={upcomingObject}
+            maxLevel={maxLevel}
+            onPause={handlePause}
+            onRequestRestart={handleRequestRestart}
+          />
 
           <GameBoard
             key={gameId}
@@ -158,6 +186,23 @@ export default function App() {
           saveMessage={saveMessage}
           onRestart={handleRestart}
           onSaveResult={handleSaveResult}
+        />
+      )}
+
+      {gameState === 'PAUSED' && (
+        <PauseModal
+          volume={volume}
+          onChangeVolume={setVolume}
+          onResume={handleResume}
+          onRestart={handleRequestRestart}
+          onGoToTitle={handleGoToTitle}
+        />
+      )}
+
+      {isRestartConfirmOpen && (
+        <RestartConfirmModal
+          onCancel={() => setIsRestartConfirmOpen(false)}
+          onConfirm={handleRestart}
         />
       )}
     </main>

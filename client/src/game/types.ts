@@ -46,4 +46,4 @@ export type DropConfig = {
   maxSpawnLevel: ObjectLevel;
 };
 
-export type GameState = 'READY' | 'PLAYING' | 'GAME_OVER';
+export type GameState = 'READY' | 'PLAYING' | 'PAUSED' | 'GAME_OVER';

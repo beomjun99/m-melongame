@@ -4,9 +4,17 @@ type ScoreBoardProps = {
   score: number;
   upcomingObject: ObjectLevelConfig;
   maxLevel: ObjectLevel;
+  onPause: () => void;
+  onRequestRestart: () => void;
 };
 
-export function ScoreBoard({ score, upcomingObject, maxLevel }: ScoreBoardProps) {
+export function ScoreBoard({
+  score,
+  upcomingObject,
+  maxLevel,
+  onPause,
+  onRequestRestart
+}: ScoreBoardProps) {
   return (
     <section className="top-bar" aria-label="Game status">
       <div>
@@ -27,9 +35,19 @@ export function ScoreBoard({ score, upcomingObject, maxLevel }: ScoreBoardProps)
           <strong>Level {upcomingObject.level}</strong>
         </div>
       </div>
-      <div>
-        <span className="label">Max Level</span>
-        <strong>{maxLevel}</strong>
+      <div className="max-level-panel">
+        <div>
+          <span className="label">Max Level</span>
+          <strong>{maxLevel}</strong>
+        </div>
+        <div className="inline-icon-controls" aria-label="Game controls">
+          <button type="button" onClick={onPause} aria-label="일시 정지" title="일시 정지">
+            ||
+          </button>
+          <button type="button" onClick={onRequestRestart} aria-label="게임 다시 시작" title="게임 다시 시작">
+            R
+          </button>
+        </div>
       </div>
     </section>
   );

@@ -49,8 +49,13 @@ export function GameBoard({
   useEffect(() => {
     gameStateRef.current = gameState;
 
-    if (gameState === 'GAME_OVER' && runnerRef.current) {
+    if ((gameState === 'GAME_OVER' || gameState === 'PAUSED') && runnerRef.current) {
       Runner.stop(runnerRef.current);
+      return;
+    }
+
+    if (gameState === 'PLAYING' && runnerRef.current && engineRef.current) {
+      Runner.run(runnerRef.current, engineRef.current);
     }
   }, [gameState]);
 
@@ -185,7 +190,7 @@ export function GameBoard({
   const dropObject = () => {
     const engine = engineRef.current;
 
-    if (!engine || !canDrop || gameStateRef.current === 'GAME_OVER') {
+    if (!engine || !canDrop || gameStateRef.current !== 'PLAYING') {
       return;
     }
 
@@ -215,7 +220,7 @@ export function GameBoard({
       >
         <div className="game-over-line" style={{ top: BOARD_CONFIG.gameOverLineY }} aria-hidden="true" />
         <div
-          className={`drop-preview ${canDrop && gameState !== 'GAME_OVER' ? '' : 'drop-preview-disabled'}`}
+          className={`drop-preview ${canDrop && gameState === 'PLAYING' ? '' : 'drop-preview-disabled'}`}
           style={{
             left: dropX,
             top: DROP_CONFIG.previewY,
