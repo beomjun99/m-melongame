@@ -220,6 +220,45 @@ body {
   gap: 12px;
 }
 
+.battle-play-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.battle-player-panel {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  border: 2px solid #0f172a;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.battle-player-panel strong {
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-player-panel span:not(.label) {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.battle-versus {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  color: #ef4444;
+  font-size: 18px;
+  font-weight: 900;
+}
+
 .score-card {
   min-height: 76px;
   display: grid;
@@ -684,6 +723,14 @@ body {
 
   .score-header {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .battle-play-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-versus {
+    min-height: 24px;
   }
 }
 

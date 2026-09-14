@@ -220,3 +220,27 @@ export function markRoomPlaying(roomId: string) {
 
   return room;
 }
+
+export function updatePlayerBattleState(socketId: string, score: number, maxLevel: number, gameOver: boolean) {
+  const room = getRoomForSocket(socketId);
+
+  if (!room) {
+    return { room: null, error: '참가 중인 방이 없습니다.' };
+  }
+
+  if (room.status !== 'PLAYING' && room.status !== 'FINISHED') {
+    return { room: null, error: '게임 상태를 갱신할 수 없는 방 상태입니다.' };
+  }
+
+  const player = room.players.find((roomPlayer) => roomPlayer.socketId === socketId);
+
+  if (!player) {
+    return { room: null, error: '방의 플레이어를 찾을 수 없습니다.' };
+  }
+
+  player.score = score;
+  player.maxLevel = maxLevel;
+  player.gameOver = gameOver;
+
+  return { room, error: null };
+}

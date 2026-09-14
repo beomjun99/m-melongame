@@ -1,4 +1,5 @@
 import type { ObjectLevelConfig } from '../game/types';
+import type { BattleRoomState } from '../battle/battleTypes';
 import { getFruitSkin } from '../theme/config';
 import type { GameTheme } from '../theme/types';
 
@@ -14,6 +15,13 @@ type GameSidePanelProps = {
   onRequestRestart: () => void;
 };
 
+type BattleStatusPanelProps = {
+  room: BattleRoomState | null;
+  score: number;
+  maxLevel: number;
+  isGameOver: boolean;
+};
+
 export function ScoreBoard({
   highScore,
   score
@@ -27,6 +35,36 @@ export function ScoreBoard({
       <div className="score-card">
         <span className="score-card-label">현재 점수</span>
         <strong>{score.toLocaleString()}</strong>
+      </div>
+    </section>
+  );
+}
+
+export function BattleStatusPanel({ room, score, maxLevel, isGameOver }: BattleStatusPanelProps) {
+  if (!room) {
+    return null;
+  }
+
+  const opponentStatus = room.opponent?.gameOver ? 'Game Over' : room.status === 'PLAYING' ? 'Playing' : room.status;
+
+  return (
+    <section className="battle-play-panel" aria-label="Battle status">
+      <div className="battle-player-panel">
+        <span className="label">PLAYER</span>
+        <strong>{room.self?.nickname ?? '나'}</strong>
+        <span>Score: {score.toLocaleString()}</span>
+        <span>Max Level: {maxLevel}</span>
+        <span>Status: {isGameOver ? 'Game Over' : 'Playing'}</span>
+      </div>
+
+      <div className="battle-versus">VS</div>
+
+      <div className="battle-player-panel">
+        <span className="label">Opponent</span>
+        <strong>{room.opponent?.nickname ?? '대기 중'}</strong>
+        <span>Score: {(room.opponent?.score ?? 0).toLocaleString()}</span>
+        <span>Max Level: {room.opponent?.maxLevel ?? '-'}</span>
+        <span>Status: {opponentStatus}</span>
       </div>
     </section>
   );

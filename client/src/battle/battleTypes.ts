@@ -46,3 +46,9 @@ export type BattleAttackPayload = {
 export type BattleAttackEvent = BattleAttackPayload & {
   id: number;
 };
+
+export type BattleStatePayload = {
+  score: number;
+  maxLevel: number;
+  gameOver: boolean;
+};

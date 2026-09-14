@@ -13,7 +13,8 @@ import {
   markRoomPlaying,
   removePlayerFromBattleRoom,
   setPlayerReady,
-  toBattleRoomState
+  toBattleRoomState,
+  updatePlayerBattleState
 } from './battleRoomManager.js';
 import type {
   BattleActionResponse,
@@ -21,6 +22,7 @@ import type {
   BattleCountdownPayload,
   BattleMergePayload,
   BattleRoom,
+  BattleStatePayload,
   BattleStartPayload
 } from './battleTypes.js';
 
@@ -57,6 +59,26 @@ function normalizeMergeLevel(value: unknown) {
   }
 
   return level;
+}
+
+function normalizeStateScore(value: unknown) {
+  const score = Number(value);
+
+  if (!Number.isFinite(score) || score < 0 || score > 999_999_999) {
+    return null;
+  }
+
+  return Math.floor(score);
+}
+
+function normalizeStateMaxLevel(value: unknown) {
+  const maxLevel = Number(value);
+
+  if (!Number.isInteger(maxLevel) || maxLevel < 1 || maxLevel > 11) {
+    return null;
+  }
+
+  return maxLevel;
 }
 
 function clearCountdown(roomId: string) {
@@ -189,6 +211,33 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
         socket.to(room.roomId).emit(SOCKET_EVENTS.ATTACK, attackPayload);
       }
 
+      callback?.({ ok: true });
+    });
+
+    socket.on(SOCKET_EVENTS.STATE, (payload: BattleStatePayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 state 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      const score = normalizeStateScore(payload.score);
+      const maxLevel = normalizeStateMaxLevel(payload.maxLevel);
+
+      if (score === null || maxLevel === null || typeof payload.gameOver !== 'boolean') {
+        callback?.({ ok: false, error: '잘못된 battle state 값입니다.' });
+        return;
+      }
+
+      const result = updatePlayerBattleState(socket.id, score, maxLevel, payload.gameOver);
+
+      if (!result.room) {
+        callback?.({ ok: false, error: result.error ?? 'battle state를 갱신할 수 없습니다.' });
+        return;
+      }
+
+      emitRoomUpdate(battleNamespace, result.room);
       callback?.({ ok: true });
     });
 

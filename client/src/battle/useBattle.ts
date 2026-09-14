@@ -6,6 +6,7 @@ import type {
   BattleAttackPayload,
   BattleCountdownPayload,
   BattleRoomState,
+  BattleStatePayload,
   BattleStartPayload
 } from './battleTypes';
 import { createBattleSocket, getBattleSocketUrl } from './socket';
@@ -177,6 +178,26 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
     [enabled, room, socket]
   );
 
+  const sendState = useMemo(
+    () => async (state: BattleStatePayload) => {
+      if (!enabled || !socket.connected || !room?.roomId || (room.status !== 'PLAYING' && room.status !== 'FINISHED')) {
+        return false;
+      }
+
+      try {
+        const response = await socket.timeout(3000).emitWithAck(SOCKET_EVENTS.STATE, {
+          roomId: room.roomId,
+          ...state
+        }) as { ok: boolean };
+
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    [enabled, room, socket]
+  );
+
   return useMemo(
     () => ({
       connectionStatus,
@@ -189,6 +210,7 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       markReady,
       room,
       sendMerge,
+      sendState,
       socket,
       socketUrl: getBattleSocketUrl(),
       startSignal
@@ -203,6 +225,7 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       requestRoomAction,
       room,
       sendMerge,
+      sendState,
       socket,
       startSignal
     ]

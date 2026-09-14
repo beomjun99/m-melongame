@@ -60,3 +60,10 @@ export type BattleMergePayload = {
 export type BattleAttackPayload = {
   level: number;
 };
+
+export type BattleStatePayload = {
+  roomId?: unknown;
+  score?: unknown;
+  maxLevel?: unknown;
+  gameOver?: unknown;
+};

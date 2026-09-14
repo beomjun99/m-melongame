@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BattleLobby } from './components/BattleLobby';
 import type { BattleStartPayload } from './battle/battleTypes';
 import { useBattle } from './battle/useBattle';
@@ -7,7 +7,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
 import { Ranking } from './components/Ranking';
 import { RestartConfirmModal } from './components/RestartConfirmModal';
-import { GameSidePanel, ScoreBoard } from './components/ScoreBoard';
+import { BattleStatusPanel, GameSidePanel, ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
 import { ThemeSettings } from './components/ThemeSettings';
 import { BOARD_CONFIG, OBJECT_LEVELS } from './game/config';
@@ -46,6 +46,7 @@ export default function App() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const lastSentBattleStateRef = useRef<string | null>(null);
   const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
 
   const loadRankings = useCallback(async () => {
@@ -151,6 +152,26 @@ export default function App() {
     setCurrentObject(upcomingObject);
     setUpcomingObject(getRandomSpawnObject());
   }, [upcomingObject]);
+
+  useEffect(() => {
+    if (selectedMode !== 'BATTLE' || !battle.room?.roomId || (battle.room.status !== 'PLAYING' && battle.room.status !== 'FINISHED')) {
+      return;
+    }
+
+    const isGameOver = gameState === 'GAME_OVER';
+    const battleStateKey = `${battle.room.roomId}:${score}:${maxLevel}:${isGameOver}`;
+
+    if (lastSentBattleStateRef.current === battleStateKey) {
+      return;
+    }
+
+    lastSentBattleStateRef.current = battleStateKey;
+    void battle.sendState({
+      score,
+      maxLevel,
+      gameOver: isGameOver
+    });
+  }, [battle, gameState, maxLevel, score, selectedMode]);
 
   const handleGameOver = useCallback(() => {
     setGameState('GAME_OVER');
@@ -367,6 +388,15 @@ export default function App() {
         <>
           <div className="game-play-layout">
             <div className="game-main-column">
+              {selectedMode === 'BATTLE' ? (
+                <BattleStatusPanel
+                  room={battle.room}
+                  score={score}
+                  maxLevel={maxLevel}
+                  isGameOver={gameState === 'GAME_OVER'}
+                />
+              ) : null}
+
               <ScoreBoard
                 highScore={rankings[0]?.score ?? 0}
                 score={score}
