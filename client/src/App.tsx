@@ -10,7 +10,7 @@ import { RestartConfirmModal } from './components/RestartConfirmModal';
 import { GameSidePanel, ScoreBoard } from './components/ScoreBoard';
 import { StartScreen } from './components/StartScreen';
 import { ThemeSettings } from './components/ThemeSettings';
-import { BOARD_CONFIG } from './game/config';
+import { BOARD_CONFIG, OBJECT_LEVELS } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
 import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
 import { createTheme, deleteTheme, getDefaultTheme, getRankings, getThemes, saveGameResult, uploadThemeImage, type RankingEntry } from './services/api';
@@ -18,6 +18,10 @@ import { DEFAULT_THEME, mergeThemeWithDefault } from './theme/config';
 import type { GameTheme } from './theme/types';
 
 const SELECTED_THEME_STORAGE_KEY = 'm-melongame:selected-theme-id';
+
+function getObjectConfig(level: number) {
+  return OBJECT_LEVELS.find((objectConfig) => objectConfig.level === level) ?? null;
+}
 
 export default function App() {
   const [currentObject, setCurrentObject] = useState(() => getRandomSpawnObject());
@@ -123,7 +127,24 @@ export default function App() {
     if (result.level === 11) {
       setLevel11Count((currentCount) => currentCount + 1);
     }
-  }, []);
+
+    if (selectedMode === 'BATTLE' && result.attackEligible) {
+      void battle.sendMerge(result.level);
+    }
+  }, [battle, selectedMode]);
+
+  const attackFruit = battle.lastAttack
+    ? {
+        id: battle.lastAttack.id,
+        object: getObjectConfig(battle.lastAttack.level)
+      }
+    : null;
+  const validAttackFruit = attackFruit?.object
+    ? {
+        id: attackFruit.id,
+        object: attackFruit.object
+      }
+    : null;
 
   const handleObjectDropped = useCallback((object: ObjectLevelConfig) => {
     setMaxLevel((currentMaxLevel) => Math.max(currentMaxLevel, object.level) as ObjectLevel);
@@ -357,6 +378,7 @@ export default function App() {
                 height={BOARD_CONFIG.height}
                 gameState={gameState}
                 currentObject={currentObject}
+                attackFruit={selectedMode === 'BATTLE' ? validAttackFruit : null}
                 theme={theme}
                 onGameOver={handleGameOver}
                 onMerge={handleMerge}

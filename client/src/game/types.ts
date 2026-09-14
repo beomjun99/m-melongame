@@ -2,6 +2,8 @@ export type ObjectLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export type GameMode = 'SINGLE' | 'BATTLE';
 
+export type FruitSource = 'NORMAL' | 'ATTACK';
+
 export type ObjectLevelConfig = {
   level: ObjectLevel;
   radius: number;
@@ -13,6 +15,7 @@ export type MergeResult = {
   score: number;
   x: number;
   y: number;
+  attackEligible: boolean;
 };
 
 export type PhysicsConfig = {

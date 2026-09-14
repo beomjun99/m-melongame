@@ -1,7 +1,7 @@
 import { Bodies } from 'matter-js';
 import type { IChamferableBodyDefinition } from 'matter-js';
 import { DROP_CONFIG, OBJECT_LEVELS, PHYSICS_CONFIG } from './config';
-import type { ObjectLevelConfig } from './types';
+import type { FruitSource, ObjectLevelConfig } from './types';
 import { getCachedCircularTexture } from '../theme/imageCache';
 import type { FruitSkin } from '../theme/types';
 
@@ -9,7 +9,7 @@ export function clampDropX(x: number, radius: number, boardWidth: number) {
   return Math.min(Math.max(x, radius), boardWidth - radius);
 }
 
-export function createObjectBody(config: ObjectLevelConfig, x: number, y: number, skin?: FruitSkin) {
+export function createObjectBody(config: ObjectLevelConfig, x: number, y: number, skin?: FruitSkin, source: FruitSource = 'NORMAL') {
   const circularTexture = skin?.imageUrl ? getCachedCircularTexture(skin.imageUrl) : null;
   const diameter = config.radius * 2;
   const render: IChamferableBodyDefinition['render'] = {
@@ -38,7 +38,8 @@ export function createObjectBody(config: ObjectLevelConfig, x: number, y: number
   body.plugin = {
     ...body.plugin,
     createdAt: performance.now(),
-    level: config.level
+    level: config.level,
+    source
   };
 
   return body;

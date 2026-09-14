@@ -1,7 +1,7 @@
 import { Composite, Engine, Events, type Body, type IEventCollision } from 'matter-js';
 import { OBJECT_LEVELS } from './config';
 import { createObjectBody } from './spawn';
-import type { MergeResult, ObjectLevel, ObjectLevelConfig } from './types';
+import type { FruitSource, MergeResult, ObjectLevel, ObjectLevelConfig } from './types';
 import { getFruitSkin } from '../theme/config';
 import type { GameTheme } from '../theme/types';
 
@@ -25,6 +25,10 @@ function getBodyLevel(body: Body): ObjectLevel | null {
   }
 
   return level as ObjectLevel;
+}
+
+function getBodySource(body: Body): FruitSource {
+  return body.plugin?.source === 'ATTACK' ? 'ATTACK' : 'NORMAL';
 }
 
 function getObjectConfig(level: ObjectLevel): ObjectLevelConfig {
@@ -70,14 +74,18 @@ export function registerMergeCollisionHandler({ engine, theme, onMerge }: MergeH
 
       if (levelA < 11) {
         const nextConfig = getObjectConfig((levelA + 1) as ObjectLevel);
-        const mergedBody = createObjectBody(nextConfig, x, y, getFruitSkin(theme, nextConfig.level));
+        const sourceA = getBodySource(bodyA);
+        const sourceB = getBodySource(bodyB);
+        const mergedSource: FruitSource = sourceA === 'NORMAL' && sourceB === 'NORMAL' ? 'NORMAL' : 'ATTACK';
+        const mergedBody = createObjectBody(nextConfig, x, y, getFruitSkin(theme, nextConfig.level), mergedSource);
 
         Composite.add(engine.world, mergedBody);
         onMerge?.({
           level: nextConfig.level,
           score: currentConfig.score,
           x,
-          y
+          y,
+          attackEligible: mergedSource === 'NORMAL'
         });
         continue;
       }
@@ -86,7 +94,8 @@ export function registerMergeCollisionHandler({ engine, theme, onMerge }: MergeH
         level: currentConfig.level,
         score: currentConfig.score,
         x,
-        y
+        y,
+        attackEligible: getBodySource(bodyA) === 'NORMAL' && getBodySource(bodyB) === 'NORMAL'
       });
     }
   };

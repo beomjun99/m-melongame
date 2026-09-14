@@ -16,11 +16,17 @@ import { getFruitSkin } from '../theme/config';
 import { preloadThemeImages } from '../theme/imageCache';
 import type { GameTheme } from '../theme/types';
 
+type AttackFruitRequest = {
+  id: number;
+  object: ObjectLevelConfig;
+};
+
 type GameBoardProps = {
   width: number;
   height: number;
   gameState: GameState;
   currentObject: ObjectLevelConfig;
+  attackFruit: AttackFruitRequest | null;
   theme: GameTheme;
   onGameOver: () => void;
   onMerge: (result: MergeResult) => void;
@@ -32,6 +38,7 @@ export function GameBoard({
   height,
   gameState,
   currentObject,
+  attackFruit,
   theme,
   onGameOver,
   onMerge,
@@ -44,6 +51,7 @@ export function GameBoard({
   const cooldownTimerRef = useRef<number | null>(null);
   const cleanupCollisionRef = useRef<(() => void) | null>(null);
   const cleanupGameOverRef = useRef<(() => void) | null>(null);
+  const processedAttackIdRef = useRef<number | null>(null);
   const gameStateRef = useRef(gameState);
   const onGameOverRef = useRef(onGameOver);
   const onMergeRef = useRef(onMerge);
@@ -85,6 +93,31 @@ export function GameBoard({
   useEffect(() => {
     setDropX((currentDropX) => clampDropX(currentDropX, currentObject.radius, width));
   }, [currentObject.radius, width]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+
+    if (!engine || !attackFruit || processedAttackIdRef.current === attackFruit.id || gameStateRef.current !== 'PLAYING') {
+      return;
+    }
+
+    processedAttackIdRef.current = attackFruit.id;
+
+    const x = clampDropX(
+      attackFruit.object.radius + Math.random() * (width - attackFruit.object.radius * 2),
+      attackFruit.object.radius,
+      width
+    );
+    const body = createObjectBody(
+      attackFruit.object,
+      x,
+      DROP_CONFIG.spawnY,
+      getFruitSkin(themeRef.current, attackFruit.object.level),
+      'ATTACK'
+    );
+
+    Composite.add(engine.world, body);
+  }, [attackFruit, width]);
 
   useEffect(() => {
     if (!sceneRef.current) {

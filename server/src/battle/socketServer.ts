@@ -2,6 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import type { Namespace } from 'socket.io';
 import { Server } from 'socket.io';
 import { env } from '../config/env.js';
+import { getAttackLevel } from './attackConfig.js';
 import { SOCKET_EVENTS } from './battleEvents.js';
 import {
   canStartCountdown,
@@ -14,7 +15,14 @@ import {
   setPlayerReady,
   toBattleRoomState
 } from './battleRoomManager.js';
-import type { BattleActionResponse, BattleCountdownPayload, BattleRoom, BattleStartPayload } from './battleTypes.js';
+import type {
+  BattleActionResponse,
+  BattleAttackPayload,
+  BattleCountdownPayload,
+  BattleMergePayload,
+  BattleRoom,
+  BattleStartPayload
+} from './battleTypes.js';
 
 type RoomCreatePayload = {
   nickname?: unknown;
@@ -39,6 +47,16 @@ function toActionResponse(room: BattleRoom, socketId: string): BattleActionRespo
     ok: true,
     room: toBattleRoomState(room, socketId)
   };
+}
+
+function normalizeMergeLevel(value: unknown) {
+  const level = Number(value);
+
+  if (!Number.isInteger(level) || level < 1 || level > 11) {
+    return null;
+  }
+
+  return level;
 }
 
 function clearCountdown(roomId: string) {
@@ -139,6 +157,39 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       callback?.(toActionResponse(result.room, socket.id));
       emitRoomUpdate(battleNamespace, result.room);
       startCountdown(battleNamespace, result.room);
+    });
+
+    socket.on(SOCKET_EVENTS.MERGE, (payload: BattleMergePayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 merge 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      if (room.status !== 'PLAYING') {
+        callback?.({ ok: false, error: '게임이 진행 중일 때만 merge 이벤트를 보낼 수 있습니다.' });
+        return;
+      }
+
+      const mergedLevel = normalizeMergeLevel(payload.level);
+
+      if (!mergedLevel) {
+        callback?.({ ok: false, error: 'merge level은 1~11 사이여야 합니다.' });
+        return;
+      }
+
+      const attackLevel = getAttackLevel(mergedLevel);
+
+      if (attackLevel) {
+        const attackPayload: BattleAttackPayload = {
+          level: attackLevel
+        };
+
+        socket.to(room.roomId).emit(SOCKET_EVENTS.ATTACK, attackPayload);
+      }
+
+      callback?.({ ok: true });
     });
 
     socket.on('disconnect', (reason) => {

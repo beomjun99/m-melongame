@@ -33,3 +33,16 @@ export type BattleStartPayload = {
   roomId: string;
   startedAt: number;
 };
+
+export type BattleMergePayload = {
+  roomId: string;
+  level: number;
+};
+
+export type BattleAttackPayload = {
+  level: number;
+};
+
+export type BattleAttackEvent = BattleAttackPayload & {
+  id: number;
+};
