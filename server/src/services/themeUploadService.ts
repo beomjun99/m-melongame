@@ -51,3 +51,17 @@ export function toPublicUploadUrl(file: Express.Multer.File) {
 
   return `${uploadConfig.publicPath}/${relativePath}`;
 }
+
+export async function deleteThemeUploadDirectory(themeId: string) {
+  const directory = path.resolve(uploadConfig.uploadRoot, 'themes', themeId);
+  const themesRoot = path.resolve(uploadConfig.uploadRoot, 'themes');
+
+  if (!directory.startsWith(themesRoot + path.sep)) {
+    throw new Error('Invalid theme upload directory.');
+  }
+
+  await fs.promises.rm(directory, {
+    force: true,
+    recursive: true
+  });
+}

@@ -11,9 +11,11 @@ import { ThemeSettings } from './components/ThemeSettings';
 import { BOARD_CONFIG } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
 import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
-import { createTheme, getDefaultTheme, getRankings, saveGameResult, uploadThemeImage, type RankingEntry } from './services/api';
+import { createTheme, deleteTheme, getDefaultTheme, getRankings, getThemes, saveGameResult, uploadThemeImage, type RankingEntry } from './services/api';
 import { DEFAULT_THEME, mergeThemeWithDefault } from './theme/config';
 import type { GameTheme } from './theme/types';
+
+const SELECTED_THEME_STORAGE_KEY = 'm-melongame:selected-theme-id';
 
 export default function App() {
   const [currentObject, setCurrentObject] = useState(() => getRandomSpawnObject());
@@ -34,6 +36,8 @@ export default function App() {
   const [volume, setVolume] = useState(80);
   const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
   const [theme, setTheme] = useState<GameTheme>(DEFAULT_THEME);
+  const [savedThemes, setSavedThemes] = useState<GameTheme[]>([]);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
 
@@ -55,29 +59,59 @@ export default function App() {
     void loadRankings();
   }, [loadRankings]);
 
+  const applyTheme = useCallback((nextTheme: GameTheme) => {
+    const mergedTheme = mergeThemeWithDefault(nextTheme);
+
+    setTheme(mergedTheme);
+    setSelectedThemeId(mergedTheme.id);
+    window.localStorage.setItem(SELECTED_THEME_STORAGE_KEY, mergedTheme.id);
+  }, []);
+
+  const loadThemes = useCallback(async () => {
+    const response = await getThemes();
+    const themes = response.themes.map(mergeThemeWithDefault);
+
+    setSavedThemes(themes);
+
+    return themes;
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
-    async function loadTheme() {
+    async function loadInitialTheme() {
       try {
-        const response = await getDefaultTheme();
+        const themes = await loadThemes();
+        const storedThemeId = window.localStorage.getItem(SELECTED_THEME_STORAGE_KEY);
+        const storedTheme = storedThemeId ? themes.find((savedTheme) => savedTheme.id === storedThemeId) : null;
+        const latestCompleteTheme = themes.find((savedTheme) => savedTheme.fruits.every((skin) => Boolean(skin.imageUrl)));
+        const themeToApply = storedTheme ?? latestCompleteTheme;
+
+        if (isActive && themeToApply) {
+          applyTheme(themeToApply);
+          return;
+        }
+
+        const defaultThemeResponse = await getDefaultTheme();
 
         if (isActive) {
-          setTheme(mergeThemeWithDefault(response.theme));
+          setTheme(mergeThemeWithDefault(defaultThemeResponse.theme));
+          setSelectedThemeId(defaultThemeResponse.theme.id);
         }
       } catch {
         if (isActive) {
           setTheme(DEFAULT_THEME);
+          setSelectedThemeId(DEFAULT_THEME.id);
         }
       }
     }
 
-    void loadTheme();
+    void loadInitialTheme();
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [applyTheme, loadThemes]);
 
   const handleMerge = useCallback((result: MergeResult) => {
     setScore((currentScore) => currentScore + result.score);
@@ -132,8 +166,9 @@ export default function App() {
   const handleOpenThemeSettings = useCallback(() => {
     setIsThemeSettingsOpen(true);
     setThemeMessage(null);
+    void loadThemes();
     setGameState('READY');
-  }, []);
+  }, [loadThemes]);
 
   const handleRestart = useCallback(() => {
     resetGame();
@@ -167,6 +202,13 @@ export default function App() {
         }
 
         setTheme(nextTheme);
+        setSelectedThemeId(nextTheme.id);
+        window.localStorage.setItem(SELECTED_THEME_STORAGE_KEY, nextTheme.id);
+        setSavedThemes((currentThemes) => [
+          nextTheme,
+          ...currentThemes.filter((savedTheme) => savedTheme.id !== nextTheme.id)
+        ]);
+        void loadThemes();
         setThemeMessage('스킨을 저장했습니다.');
         return true;
       } catch (error) {
@@ -177,8 +219,57 @@ export default function App() {
         setIsSavingTheme(false);
       }
     },
-    [theme]
+    [loadThemes]
   );
+
+  const handleLoadTheme = useCallback((themeId: string) => {
+    const nextTheme = savedThemes.find((savedTheme) => savedTheme.id === themeId);
+
+    if (!nextTheme) {
+      setThemeMessage('선택한 라인업을 찾을 수 없습니다.');
+      return;
+    }
+
+    applyTheme(nextTheme);
+    setThemeMessage(`${nextTheme.name} 라인업을 불러왔습니다.`);
+  }, [applyTheme, savedThemes]);
+
+  const handleDeleteTheme = useCallback(async (themeId: string) => {
+    const themeToDelete = savedThemes.find((savedTheme) => savedTheme.id === themeId);
+
+    if (!themeToDelete) {
+      setThemeMessage('삭제할 라인업을 찾을 수 없습니다.');
+      return;
+    }
+
+    setIsSavingTheme(true);
+    setThemeMessage(null);
+
+    try {
+      await deleteTheme(themeId);
+      const nextThemes = await loadThemes();
+      const nextTheme = nextThemes.find((savedTheme) => savedTheme.id === selectedThemeId)
+        ?? nextThemes.find((savedTheme) => savedTheme.fruits.every((skin) => Boolean(skin.imageUrl)))
+        ?? null;
+
+      if (themeId === selectedThemeId) {
+        if (nextTheme) {
+          applyTheme(nextTheme);
+        } else {
+          setTheme(DEFAULT_THEME);
+          setSelectedThemeId(DEFAULT_THEME.id);
+          window.localStorage.removeItem(SELECTED_THEME_STORAGE_KEY);
+        }
+      }
+
+      setThemeMessage(`${themeToDelete.name} 라인업을 삭제했습니다.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setThemeMessage(`라인업 삭제에 실패했습니다. ${message}`);
+    } finally {
+      setIsSavingTheme(false);
+    }
+  }, [applyTheme, loadThemes, savedThemes, selectedThemeId]);
 
   const handleSaveResult = useCallback(
     async (nickname: string) => {
@@ -215,9 +306,13 @@ export default function App() {
       {gameState === 'READY' && isThemeSettingsOpen ? (
         <ThemeSettings
           theme={theme}
+          savedThemes={savedThemes}
+          selectedThemeId={selectedThemeId}
           isSaving={isSavingTheme}
           message={themeMessage}
           onBack={handleGoToTitle}
+          onDeleteTheme={handleDeleteTheme}
+          onLoadTheme={handleLoadTheme}
           onSave={handleSaveTheme}
         />
       ) : gameState === 'READY' && selectedMode !== 'BATTLE' ? (

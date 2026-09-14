@@ -5,19 +5,38 @@ import { OBJECT_LEVELS } from '../game/config';
 
 type ThemeSettingsProps = {
   theme: GameTheme;
+  savedThemes: GameTheme[];
+  selectedThemeId: string | null;
   isSaving: boolean;
   message: string | null;
   onBack: () => void;
+  onDeleteTheme: (themeId: string) => Promise<void>;
+  onLoadTheme: (themeId: string) => void;
   onSave: (name: string, filesByLevel: Map<number, File>) => Promise<boolean>;
 };
 
-export function ThemeSettings({ theme, isSaving, message, onBack, onSave }: ThemeSettingsProps) {
+export function ThemeSettings({
+  theme,
+  savedThemes,
+  selectedThemeId,
+  isSaving,
+  message,
+  onBack,
+  onDeleteTheme,
+  onLoadTheme,
+  onSave
+}: ThemeSettingsProps) {
   const [themeName, setThemeName] = useState('');
+  const [themeToLoadId, setThemeToLoadId] = useState(selectedThemeId ?? '');
   const [pendingFiles, setPendingFiles] = useState(() => new Map<number, File>());
   const [previewUrls, setPreviewUrls] = useState(() => new Map<number, string>());
   const previewUrlsRef = useRef(previewUrls);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const mergedTheme = useMemo(() => mergeThemeWithDefault(theme), [theme]);
+
+  useEffect(() => {
+    setThemeToLoadId(selectedThemeId ?? '');
+  }, [selectedThemeId]);
 
   useEffect(() => {
     previewUrlsRef.current = previewUrls;
@@ -66,6 +85,12 @@ export function ThemeSettings({ theme, isSaving, message, onBack, onSave }: Them
   const missingLevels = OBJECT_LEVELS
     .map((objectConfig) => objectConfig.level)
     .filter((level) => !pendingFiles.has(level) && !getFruitSkin(mergedTheme, level).imageUrl);
+  const normalizedThemeName = themeName.trim().toLowerCase();
+  const hasDuplicateThemeName = Boolean(
+    normalizedThemeName && savedThemes.some((savedTheme) => savedTheme.name.trim().toLowerCase() === normalizedThemeName)
+  );
+  const selectedSavedTheme = savedThemes.find((savedTheme) => savedTheme.id === themeToLoadId) ?? null;
+  const canDeleteSelectedTheme = Boolean(selectedSavedTheme && selectedSavedTheme.name !== 'Default Custom Theme');
 
   return (
     <section className="theme-settings" aria-label="Character settings">
@@ -89,6 +114,48 @@ export function ThemeSettings({ theme, isSaving, message, onBack, onSave }: Them
           onChange={(event) => setThemeName(event.target.value)}
         />
       </label>
+
+      <div className="theme-load-panel">
+        <label>
+          <span>저장된 라인업</span>
+          <select
+            value={themeToLoadId}
+            onChange={(event) => setThemeToLoadId(event.target.value)}
+          >
+            <option value="">라인업 선택</option>
+            {savedThemes.map((savedTheme) => (
+              <option key={savedTheme.id} value={savedTheme.id}>
+                {savedTheme.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={!themeToLoadId}
+          onClick={() => onLoadTheme(themeToLoadId)}
+        >
+          불러오기
+        </button>
+        <button
+          className="danger"
+          type="button"
+          disabled={!canDeleteSelectedTheme}
+          onClick={async () => {
+            if (!selectedSavedTheme) {
+              return;
+            }
+
+            const shouldDelete = window.confirm(`${selectedSavedTheme.name} 라인업을 삭제할까요?`);
+
+            if (shouldDelete) {
+              await onDeleteTheme(selectedSavedTheme.id);
+            }
+          }}
+        >
+          삭제
+        </button>
+      </div>
 
       <div className="theme-grid">
         {OBJECT_LEVELS.map((objectConfig) => {
@@ -126,10 +193,14 @@ export function ThemeSettings({ theme, isSaving, message, onBack, onSave }: Them
         <p className="status-message">저장하려면 Level {missingLevels.join(', ')} 이미지가 필요합니다.</p>
       )}
 
+      {hasDuplicateThemeName && (
+        <p className="status-message warning">이미 같은 이름의 라인업이 있습니다. 다른 이름을 입력해주세요.</p>
+      )}
+
       <button
         className="theme-save-button"
         type="button"
-        disabled={isSaving || pendingFiles.size === 0 || missingLevels.length > 0 || !themeName.trim()}
+        disabled={isSaving || pendingFiles.size === 0 || missingLevels.length > 0 || !themeName.trim() || hasDuplicateThemeName}
         onClick={async () => {
           const saved = await onSave(themeName, pendingFiles);
 

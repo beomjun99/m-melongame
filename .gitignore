@@ -7,3 +7,5 @@ npm-debug.log*
 coverage/
 server/uploads/
 server-dev.log
+client-dev.log
+server-start.log

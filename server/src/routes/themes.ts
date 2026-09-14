@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { pool } from '../db/pool.js';
-import { themeImageUpload, toPublicUploadUrl } from '../services/themeUploadService.js';
+import { deleteThemeUploadDirectory, themeImageUpload, toPublicUploadUrl } from '../services/themeUploadService.js';
 
 type ThemeItemRow = {
   level: number;
@@ -100,6 +100,21 @@ async function getTheme(themeId: string) {
   return result.rows[0] ?? null;
 }
 
+async function themeNameExists(name: string) {
+  const result = await pool.query<{ exists: boolean }>(
+    `
+      select exists (
+        select 1
+        from themes
+        where lower(name) = lower($1)
+      )
+    `,
+    [name]
+  );
+
+  return result.rows[0]?.exists ?? false;
+}
+
 async function validateThemeUploadTarget(req: Request, res: Response, next: NextFunction) {
   try {
     const themeId = getParamValue(req.params.themeId);
@@ -174,6 +189,11 @@ themesRouter.post('/', async (req, res, next) => {
       return;
     }
 
+    if (await themeNameExists(name)) {
+      res.status(409).json({ error: '이미 같은 이름의 라인업이 있습니다. 다른 이름을 입력해주세요.' });
+      return;
+    }
+
     const result = await pool.query<{ id: string }>(
       `
         insert into themes (name)
@@ -197,6 +217,36 @@ themesRouter.get('/default', async (_req, res, next) => {
     const theme = await getTheme(themeId);
 
     res.json({ theme });
+  } catch (error) {
+    next(error);
+  }
+});
+
+themesRouter.delete('/:themeId', async (req, res, next) => {
+  try {
+    const themeId = getParamValue(req.params.themeId);
+
+    if (!themeId) {
+      res.status(400).json({ error: 'themeId is required.' });
+      return;
+    }
+
+    const theme = await getTheme(themeId);
+
+    if (!theme) {
+      res.status(404).json({ error: 'Theme not found.' });
+      return;
+    }
+
+    if (theme.name === 'Default Custom Theme') {
+      res.status(400).json({ error: '기본 라인업은 삭제할 수 없습니다.' });
+      return;
+    }
+
+    await pool.query('delete from themes where id = $1', [themeId]);
+    await deleteThemeUploadDirectory(themeId);
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

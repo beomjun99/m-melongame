@@ -89,6 +89,14 @@ export async function getDefaultTheme() {
   };
 }
 
+export async function getThemes() {
+  const response = await requestJson<{ themes: GameTheme[] }>('/api/themes');
+
+  return {
+    themes: response.themes.map(normalizeTheme)
+  };
+}
+
 export async function createTheme(name: string) {
   const response = await requestJson<{ theme: GameTheme }>('/api/themes', {
     method: 'POST',
@@ -98,6 +106,28 @@ export async function createTheme(name: string) {
   return {
     theme: normalizeTheme(response.theme)
   };
+}
+
+export async function deleteTheme(themeId: string) {
+  const response = await fetch(`${API_BASE_URL}/api/themes/${encodeURIComponent(themeId)}`, {
+    method: 'DELETE'
+  });
+
+  if (!response.ok) {
+    let errorMessage = `API request failed with status ${response.status}`;
+
+    try {
+      const errorBody = await response.json() as { error?: unknown };
+
+      if (typeof errorBody.error === 'string') {
+        errorMessage = errorBody.error;
+      }
+    } catch {
+      // Keep the HTTP status fallback when the response is not JSON.
+    }
+
+    throw new Error(errorMessage);
+  }
 }
 
 export async function uploadThemeImage(themeId: string, level: ObjectLevel, file: File) {
