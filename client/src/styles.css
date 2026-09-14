@@ -23,6 +23,82 @@ body {
   padding: 24px;
 }
 
+.start-screen {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 16px;
+}
+
+.title-panel {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.title-panel h1 {
+  margin: 0 0 16px;
+  font-size: 34px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.how-to-play {
+  display: grid;
+  gap: 8px;
+}
+
+.how-to-play h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.how-to-play p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.start-menu {
+  display: grid;
+  gap: 10px;
+}
+
+.menu-banner {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 15px 16px;
+  text-align: center;
+}
+
+.menu-banner:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.menu-banner.primary {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.menu-banner.primary:hover {
+  background: #1f2937;
+}
+
+.menu-banner.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .top-bar {
   width: min(420px, 100%);
   display: grid;

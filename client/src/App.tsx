@@ -3,6 +3,7 @@ import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { Ranking } from './components/Ranking';
 import { ScoreBoard } from './components/ScoreBoard';
+import { StartScreen } from './components/StartScreen';
 import { BOARD_CONFIG } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
 import type { GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
@@ -11,7 +12,7 @@ import { getRankings, saveGameResult, type RankingEntry } from './services/api';
 export default function App() {
   const [currentObject, setCurrentObject] = useState(() => getRandomSpawnObject());
   const [upcomingObject, setUpcomingObject] = useState(() => getRandomSpawnObject());
-  const [gameState, setGameState] = useState<GameState>('PLAYING');
+  const [gameState, setGameState] = useState<GameState>('READY');
   const [gameId, setGameId] = useState(0);
   const [score, setScore] = useState(0);
   const [maxLevel, setMaxLevel] = useState<ObjectLevel>(currentObject.level);
@@ -19,6 +20,7 @@ export default function App() {
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
   const [rankingError, setRankingError] = useState<string | null>(null);
   const [isRankingLoading, setIsRankingLoading] = useState(false);
+  const [showStartRankings, setShowStartRankings] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSavingResult, setIsSavingResult] = useState(false);
 
@@ -59,18 +61,27 @@ export default function App() {
     setGameState('GAME_OVER');
   }, []);
 
-  const handleRestart = useCallback(() => {
+  const resetGame = useCallback(() => {
     const freshCurrentObject = getRandomSpawnObject();
 
     setCurrentObject(freshCurrentObject);
     setUpcomingObject(getRandomSpawnObject());
-    setGameState('PLAYING');
     setGameId((currentGameId) => currentGameId + 1);
     setScore(0);
     setMaxLevel(freshCurrentObject.level);
     setLevel11Count(0);
     setSaveMessage(null);
   }, []);
+
+  const handleStartGame = useCallback(() => {
+    resetGame();
+    setGameState('PLAYING');
+  }, [resetGame]);
+
+  const handleRestart = useCallback(() => {
+    resetGame();
+    setGameState('PLAYING');
+  }, [resetGame]);
 
   const handleSaveResult = useCallback(
     async (nickname: string) => {
@@ -104,25 +115,39 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <ScoreBoard score={score} upcomingObject={upcomingObject} maxLevel={maxLevel} />
+      {gameState === 'READY' ? (
+        <StartScreen
+          rankings={rankings}
+          isRankingLoading={isRankingLoading}
+          rankingError={rankingError}
+          showRankings={showStartRankings}
+          onRefreshRankings={loadRankings}
+          onStartGame={handleStartGame}
+          onToggleRankings={() => setShowStartRankings((currentValue) => !currentValue)}
+        />
+      ) : (
+        <>
+          <ScoreBoard score={score} upcomingObject={upcomingObject} maxLevel={maxLevel} />
 
-      <GameBoard
-        key={gameId}
-        width={BOARD_CONFIG.width}
-        height={BOARD_CONFIG.height}
-        gameState={gameState}
-        currentObject={currentObject}
-        onGameOver={handleGameOver}
-        onMerge={handleMerge}
-        onObjectDropped={handleObjectDropped}
-      />
+          <GameBoard
+            key={gameId}
+            width={BOARD_CONFIG.width}
+            height={BOARD_CONFIG.height}
+            gameState={gameState}
+            currentObject={currentObject}
+            onGameOver={handleGameOver}
+            onMerge={handleMerge}
+            onObjectDropped={handleObjectDropped}
+          />
 
-      <Ranking
-        rankings={rankings}
-        isLoading={isRankingLoading}
-        error={rankingError}
-        onRefresh={loadRankings}
-      />
+          <Ranking
+            rankings={rankings}
+            isLoading={isRankingLoading}
+            error={rankingError}
+            onRefresh={loadRankings}
+          />
+        </>
+      )}
 
       {gameState === 'GAME_OVER' && (
         <GameOverModal
