@@ -5,6 +5,9 @@ import type {
   BattleAttackEvent,
   BattleAttackPayload,
   BattleCountdownPayload,
+  BattlePauseEvent,
+  BattlePausePayload,
+  BattlePlayerDisconnectedPayload,
   BattleResultPayload,
   BattleRoomState,
   BattleStatePayload,
@@ -26,7 +29,10 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
   const [countdown, setCountdown] = useState<BattleCountdownPayload['value'] | null>(null);
   const [startSignal, setStartSignal] = useState<BattleStartPayload | null>(null);
   const [lastAttack, setLastAttack] = useState<BattleAttackEvent | null>(null);
+  const [pauseSignal, setPauseSignal] = useState<BattlePauseEvent | null>(null);
+  const [resumeSignal, setResumeSignal] = useState<BattlePauseEvent | null>(null);
   const [result, setResult] = useState<BattleResultPayload | null>(null);
+  const [disconnectNotice, setDisconnectNotice] = useState<BattlePlayerDisconnectedPayload | null>(null);
   const socket = useMemo(() => createBattleSocket(), []);
 
   useEffect(() => {
@@ -38,7 +44,10 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       setRoom(null);
       setStartSignal(null);
       setLastAttack(null);
+      setPauseSignal(null);
+      setResumeSignal(null);
       setResult(null);
+      setDisconnectNotice(null);
       return;
     }
 
@@ -68,7 +77,10 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
     function handleStart(payload: BattleStartPayload) {
       setStartSignal(payload);
       setCountdown(null);
+      setPauseSignal(null);
+      setResumeSignal(null);
       setResult(null);
+      setDisconnectNotice(null);
     }
 
     function handleAttack(payload: BattleAttackPayload) {
@@ -82,6 +94,24 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       setResult(payload);
     }
 
+    function handlePlayerDisconnected(payload: BattlePlayerDisconnectedPayload) {
+      setDisconnectNotice(payload);
+    }
+
+    function handlePause(payload: BattlePausePayload) {
+      setPauseSignal((currentSignal) => ({
+        ...payload,
+        id: (currentSignal?.id ?? 0) + 1
+      }));
+    }
+
+    function handleResume(payload: BattlePausePayload) {
+      setResumeSignal((currentSignal) => ({
+        ...payload,
+        id: (currentSignal?.id ?? 0) + 1
+      }));
+    }
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', handleConnectError);
@@ -90,6 +120,9 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
     socket.on(SOCKET_EVENTS.START, handleStart);
     socket.on(SOCKET_EVENTS.ATTACK, handleAttack);
     socket.on(SOCKET_EVENTS.RESULT, handleResult);
+    socket.on(SOCKET_EVENTS.PAUSE, handlePause);
+    socket.on(SOCKET_EVENTS.RESUME, handleResume);
+    socket.on(SOCKET_EVENTS.PLAYER_DISCONNECTED, handlePlayerDisconnected);
     socket.connect();
 
     return () => {
@@ -101,6 +134,9 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       socket.off(SOCKET_EVENTS.START, handleStart);
       socket.off(SOCKET_EVENTS.ATTACK, handleAttack);
       socket.off(SOCKET_EVENTS.RESULT, handleResult);
+      socket.off(SOCKET_EVENTS.PAUSE, handlePause);
+      socket.off(SOCKET_EVENTS.RESUME, handleResume);
+      socket.off(SOCKET_EVENTS.PLAYER_DISCONNECTED, handlePlayerDisconnected);
       socket.disconnect();
     };
   }, [enabled, socket]);
@@ -228,20 +264,84 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
     [enabled, room, socket]
   );
 
+  const sendPause = useMemo(
+    () => async () => {
+      if (!enabled || !socket.connected || !room?.roomId || room.status !== 'PLAYING') {
+        return false;
+      }
+
+      try {
+        const response = await socket.timeout(3000).emitWithAck(SOCKET_EVENTS.PAUSE, {
+          roomId: room.roomId
+        }) as { ok: boolean };
+
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    [enabled, room, socket]
+  );
+
+  const sendResume = useMemo(
+    () => async () => {
+      if (!enabled || !socket.connected || !room?.roomId || room.status !== 'PLAYING') {
+        return false;
+      }
+
+      try {
+        const response = await socket.timeout(3000).emitWithAck(SOCKET_EVENTS.RESUME, {
+          roomId: room.roomId
+        }) as { ok: boolean };
+
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    [enabled, room, socket]
+  );
+
+  const leaveRoom = useMemo(
+    () => async (score: number) => {
+      if (!enabled || !socket.connected || !room?.roomId) {
+        return false;
+      }
+
+      try {
+        const response = await socket.timeout(5000).emitWithAck(SOCKET_EVENTS.LEAVE, {
+          roomId: room.roomId,
+          score
+        }) as { ok: boolean };
+
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    [enabled, room, socket]
+  );
+
   return useMemo(
     () => ({
       connectionStatus,
       countdown,
       createRoom: (nickname: string) => requestRoomAction(SOCKET_EVENTS.ROOM_CREATE, { nickname }),
       errorMessage,
+      disconnectNotice,
       isRoomActionPending,
       joinRoom: (roomId: string, nickname: string) => requestRoomAction(SOCKET_EVENTS.ROOM_JOIN, { roomId, nickname }),
       lastAttack,
+      leaveRoom,
       markReady,
+      pauseSignal,
       result,
+      resumeSignal,
       room,
       sendGameOver,
       sendMerge,
+      sendPause,
+      sendResume,
       sendState,
       socket,
       socketUrl: getBattleSocketUrl(),
@@ -251,14 +351,20 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       connectionStatus,
       countdown,
       errorMessage,
+      disconnectNotice,
       isRoomActionPending,
       lastAttack,
+      leaveRoom,
       markReady,
+      pauseSignal,
       requestRoomAction,
       result,
+      resumeSignal,
       room,
       sendGameOver,
       sendMerge,
+      sendPause,
+      sendResume,
       sendState,
       socket,
       startSignal

@@ -5,15 +5,18 @@ import { env } from '../config/env.js';
 import { getAttackLevel } from './attackConfig.js';
 import { SOCKET_EVENTS } from './battleEvents.js';
 import { saveBattleResult } from './battleResultService.js';
+import { checkMergeRateLimit, clearMergeRateLimit } from './rateLimit.js';
 import {
   canStartCountdown,
   createBattleRoom,
+  finishBattleByDisconnect,
   finishBattleByGameOver,
   getRoomForSocket,
   joinBattleRoom,
   markCountdownStarted,
   markRoomPlaying,
   removePlayerFromBattleRoom,
+  setBattlePaused,
   setPlayerReady,
   toBattleRoomState,
   updatePlayerBattleState
@@ -23,7 +26,11 @@ import type {
   BattleAttackPayload,
   BattleCountdownPayload,
   BattleGameOverPayload,
+  BattleLeavePayload,
   BattleMergePayload,
+  BattlePausePayload,
+  BattlePauseRequestPayload,
+  BattlePlayerDisconnectedPayload,
   BattleRoom,
   BattleResultPayload,
   BattleStatePayload,
@@ -58,7 +65,7 @@ function toActionResponse(room: BattleRoom, socketId: string): BattleActionRespo
 function normalizeMergeLevel(value: unknown) {
   const level = Number(value);
 
-  if (!Number.isInteger(level) || level < 1 || level > 11) {
+  if (!Number.isInteger(level) || level < 2 || level > 11) {
     return null;
   }
 
@@ -219,10 +226,20 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
         return;
       }
 
+      if (room.paused) {
+        callback?.({ ok: false, error: '일시 정지 중에는 merge 이벤트를 보낼 수 없습니다.' });
+        return;
+      }
+
       const mergedLevel = normalizeMergeLevel(payload.level);
 
       if (!mergedLevel) {
-        callback?.({ ok: false, error: 'merge level은 1~11 사이여야 합니다.' });
+        callback?.({ ok: false, error: 'merge level은 2~11 사이여야 합니다.' });
+        return;
+      }
+
+      if (!checkMergeRateLimit(socket.id)) {
+        callback?.({ ok: false, error: 'merge 이벤트가 너무 빠르게 발생했습니다.' });
         return;
       }
 
@@ -266,6 +283,58 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       callback?.({ ok: true });
     });
 
+    socket.on(SOCKET_EVENTS.PAUSE, (payload: BattlePauseRequestPayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 pause 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      const result = setBattlePaused(socket.id, true);
+
+      if (!result.room || !result.player) {
+        callback?.({ ok: false, error: result.error ?? '일시 정지할 수 없습니다.' });
+        return;
+      }
+
+      const pausePayload: BattlePausePayload = {
+        roomId: result.room.roomId,
+        paused: true,
+        nickname: result.player.nickname
+      };
+
+      battleNamespace.to(result.room.roomId).emit(SOCKET_EVENTS.PAUSE, pausePayload);
+      emitRoomUpdate(battleNamespace, result.room);
+      callback?.({ ok: true });
+    });
+
+    socket.on(SOCKET_EVENTS.RESUME, (payload: BattlePauseRequestPayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 resume 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      const result = setBattlePaused(socket.id, false);
+
+      if (!result.room || !result.player) {
+        callback?.({ ok: false, error: result.error ?? '게임을 재개할 수 없습니다.' });
+        return;
+      }
+
+      const resumePayload: BattlePausePayload = {
+        roomId: result.room.roomId,
+        paused: false,
+        nickname: result.player.nickname
+      };
+
+      battleNamespace.to(result.room.roomId).emit(SOCKET_EVENTS.RESUME, resumePayload);
+      emitRoomUpdate(battleNamespace, result.room);
+      callback?.({ ok: true });
+    });
+
     socket.on(SOCKET_EVENTS.GAME_OVER, async (payload: BattleGameOverPayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
       const room = getRoomForSocket(socket.id);
 
@@ -299,8 +368,90 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       callback?.({ ok: true });
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on(SOCKET_EVENTS.LEAVE, async (payload: BattleLeavePayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 leave 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      const score = normalizeStateScore(payload.score);
+
+      if (score === null) {
+        callback?.({ ok: false, error: '잘못된 score 값입니다.' });
+        return;
+      }
+
+      if (room.status !== 'PLAYING') {
+        const updatedRoom = removePlayerFromBattleRoom(socket.id);
+
+        if (updatedRoom) {
+          emitRoomUpdate(battleNamespace, updatedRoom);
+        }
+
+        callback?.({ ok: true });
+        return;
+      }
+
+      const result = finishBattleByGameOver(socket.id, score);
+
+      if (!result.room || !result.winner || !result.loser) {
+        callback?.({ ok: false, error: result.error ?? 'Battle 이탈 결과를 확정할 수 없습니다.' });
+        return;
+      }
+
+      try {
+        await saveBattleResult(result.room, result.winner);
+      } catch (error) {
+        console.error('Failed to save battle result after leave.', error);
+      }
+
+      const disconnectedPayload: BattlePlayerDisconnectedPayload = {
+        roomId: result.room.roomId,
+        nickname: result.loser.nickname,
+        message: '상대방이 게임을 이탈했습니다.'
+      };
+
+      battleNamespace.to(result.winner.socketId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, disconnectedPayload);
+      emitRoomUpdate(battleNamespace, result.room);
+      emitBattleResult(battleNamespace, result.room, result.winner.socketId);
+      callback?.({ ok: true });
+    });
+
+    socket.on('disconnect', async (reason) => {
       const previousRoom = getRoomForSocket(socket.id);
+
+      clearMergeRateLimit(socket.id);
+
+      if (previousRoom?.status === 'PLAYING') {
+        clearCountdown(previousRoom.roomId);
+
+        const result = finishBattleByDisconnect(socket.id);
+
+        if (result.room && result.winner && result.loser) {
+          try {
+            await saveBattleResult(result.room, result.winner);
+          } catch (error) {
+            console.error('Failed to save battle result after disconnect.', error);
+          }
+
+          const disconnectedPayload: BattlePlayerDisconnectedPayload = {
+            roomId: result.room.roomId,
+            nickname: result.loser.nickname,
+            message: '상대방 연결이 종료되었습니다.'
+          };
+
+          battleNamespace.to(result.winner.socketId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, disconnectedPayload);
+          emitRoomUpdate(battleNamespace, result.room);
+          emitBattleResult(battleNamespace, result.room, result.winner.socketId);
+        }
+
+        void socket.leave(previousRoom.roomId);
+        console.log(`Battle socket disconnected: ${socket.id} (${reason})`);
+        return;
+      }
+
       const updatedRoom = removePlayerFromBattleRoom(socket.id);
 
       if (previousRoom) {

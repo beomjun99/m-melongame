@@ -142,3 +142,9 @@ Battle 연결 테스트:
 
 참고: Supabase Edge Functions는 WebSocket을 처리할 수 있지만, 현재 서버는 Express + Socket.IO 기반입니다.
 따라서 이 MVP에서는 Supabase에 Express 서버를 그대로 배포하지 않고, Node 서버 호스팅에 배포하는 구성이 가장 단순합니다.
+
+## Battle MVP 검증 한계
+
+현재 Battle MVP는 Matter.js 물리 시뮬레이션을 각 클라이언트에서 독립적으로 실행하는 client-authoritative 구조입니다.
+서버는 Room 참가 여부, PLAYING 상태 여부, merge level 범위, 짧은 시간 내 과도한 merge 이벤트 발생 여부만 검증합니다.
+경쟁 서비스로 확장할 경우 server-authoritative validation 또는 리플레이 검증이 추가로 필요합니다.

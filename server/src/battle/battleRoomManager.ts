@@ -69,6 +69,7 @@ export function toBattleRoomState(room: BattleRoom, socketId: string): BattleRoo
   return {
     roomId: room.roomId,
     status: room.status,
+    paused: room.paused,
     self: self ? toPlayerState(self) : null,
     opponent: opponent ? toPlayerState(opponent) : null
   };
@@ -99,7 +100,8 @@ export function createBattleRoom(socketId: string, nicknameValue: unknown) {
     createdAt: Date.now(),
     countdownStartedAt: null,
     startedAt: null,
-    finishedAt: null
+    finishedAt: null,
+    paused: false
   };
 
   rooms.set(roomId, room);
@@ -159,6 +161,15 @@ export function removePlayerFromBattleRoom(socketId: string) {
     return null;
   }
 
+  if (room.status === 'FINISHED') {
+    for (const player of room.players) {
+      roomIdBySocketId.delete(player.socketId);
+    }
+
+    rooms.delete(room.roomId);
+    return null;
+  }
+
   room.players = room.players.filter((player) => player.socketId !== socketId);
 
   if (room.players.length === 0) {
@@ -166,9 +177,14 @@ export function removePlayerFromBattleRoom(socketId: string) {
     return null;
   }
 
-  if (room.status === 'READY') {
+  if (room.status === 'READY' || room.status === 'WAITING') {
     room.status = 'WAITING';
     room.countdownStartedAt = null;
+    room.paused = false;
+
+    for (const player of room.players) {
+      player.ready = false;
+    }
   }
 
   return room;
@@ -220,6 +236,7 @@ export function markRoomPlaying(roomId: string) {
 
   room.status = 'PLAYING';
   room.startedAt = Date.now();
+  room.paused = false;
 
   return room;
 }
@@ -274,6 +291,60 @@ export function finishBattleByGameOver(socketId: string, score: number) {
   loser.gameOver = true;
   room.status = 'FINISHED';
   room.finishedAt = Date.now();
+  room.paused = false;
 
   return { room, loser, winner, error: null };
+}
+
+export function finishBattleByDisconnect(socketId: string) {
+  const room = getRoomForSocket(socketId);
+
+  if (!room) {
+    return { room: null, loser: null, winner: null, error: '참가 중인 방이 없습니다.' };
+  }
+
+  if (room.status !== 'PLAYING') {
+    return { room: null, loser: null, winner: null, error: '게임이 진행 중일 때만 연결 종료 패배를 처리할 수 있습니다.' };
+  }
+
+  if (room.players.length !== MAX_PLAYERS_PER_ROOM) {
+    return { room: null, loser: null, winner: null, error: '두 플레이어가 모두 있어야 결과를 확정할 수 있습니다.' };
+  }
+
+  const loser = room.players.find((player) => player.socketId === socketId) ?? null;
+  const winner = room.players.find((player) => player.socketId !== socketId) ?? null;
+
+  if (!loser || !winner) {
+    return { room: null, loser: null, winner: null, error: '승패를 결정할 플레이어를 찾을 수 없습니다.' };
+  }
+
+  loser.gameOver = true;
+  room.status = 'FINISHED';
+  room.finishedAt = Date.now();
+  room.paused = false;
+  roomIdBySocketId.delete(socketId);
+
+  return { room, loser, winner, error: null };
+}
+
+export function setBattlePaused(socketId: string, paused: boolean) {
+  const room = getRoomForSocket(socketId);
+
+  if (!room) {
+    return { room: null, player: null, error: '참가 중인 방이 없습니다.' };
+  }
+
+  if (room.status !== 'PLAYING') {
+    return { room: null, player: null, error: '게임이 진행 중일 때만 일시 정지를 변경할 수 있습니다.' };
+  }
+
+  const player = room.players.find((roomPlayer) => roomPlayer.socketId === socketId) ?? null;
+
+  if (!player) {
+    return { room: null, player: null, error: '방의 플레이어를 찾을 수 없습니다.' };
+  }
+
+  room.paused = paused;
+
+  return { room, player, error: null };
 }

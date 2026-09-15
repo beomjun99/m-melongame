@@ -18,6 +18,7 @@ export type BattleRoom = {
   countdownStartedAt: number | null;
   startedAt: number | null;
   finishedAt: number | null;
+  paused: boolean;
 };
 
 export type BattlePlayerState = {
@@ -31,6 +32,7 @@ export type BattlePlayerState = {
 export type BattleRoomState = {
   roomId: string;
   status: BattleStatus;
+  paused: boolean;
   self: BattlePlayerState | null;
   opponent: BattlePlayerState | null;
 };
@@ -75,10 +77,31 @@ export type BattleGameOverPayload = {
   score?: unknown;
 };
 
+export type BattleLeavePayload = {
+  roomId?: unknown;
+  score?: unknown;
+};
+
+export type BattlePauseRequestPayload = {
+  roomId?: unknown;
+};
+
+export type BattlePausePayload = {
+  roomId: string;
+  paused: boolean;
+  nickname: string;
+};
+
 export type BattleResultPayload = {
   roomId: string;
   outcome: 'WIN' | 'LOSE';
   winnerNickname: string;
   selfScore: number;
   opponentScore: number;
+};
+
+export type BattlePlayerDisconnectedPayload = {
+  roomId: string;
+  nickname: string;
+  message: string;
 };

@@ -568,6 +568,14 @@ body {
   text-align: center;
 }
 
+.battle-result-notice {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .battle-result-outcome.win {
   color: #16a34a;
 }

@@ -10,6 +10,9 @@ export const SOCKET_EVENTS = {
   STATE: 'battle:state',
   GAME_OVER: 'battle:gameOver',
   RESULT: 'battle:result',
+  PAUSE: 'battle:pause',
+  RESUME: 'battle:resume',
+  LEAVE: 'battle:leave',
   REMATCH: 'battle:rematch',
   PLAYER_DISCONNECTED: 'battle:playerDisconnected'
 } as const;

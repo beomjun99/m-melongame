@@ -11,6 +11,7 @@ export type BattlePlayerState = {
 export type BattleRoomState = {
   roomId: string;
   status: BattleStatus;
+  paused: boolean;
   self: BattlePlayerState | null;
   opponent: BattlePlayerState | null;
 };
@@ -59,4 +60,20 @@ export type BattleResultPayload = {
   winnerNickname: string;
   selfScore: number;
   opponentScore: number;
+};
+
+export type BattlePausePayload = {
+  roomId: string;
+  paused: boolean;
+  nickname: string;
+};
+
+export type BattlePauseEvent = BattlePausePayload & {
+  id: number;
+};
+
+export type BattlePlayerDisconnectedPayload = {
+  roomId: string;
+  nickname: string;
+  message: string;
 };

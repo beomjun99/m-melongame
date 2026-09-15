@@ -45,7 +45,8 @@ export function BattleStatusPanel({ room, score, maxLevel, isGameOver }: BattleS
     return null;
   }
 
-  const opponentStatus = room.opponent?.gameOver ? 'Game Over' : room.status === 'PLAYING' ? 'Playing' : room.status;
+  const selfStatus = isGameOver ? 'Game Over' : room.paused ? 'Paused' : 'Playing';
+  const opponentStatus = room.opponent?.gameOver ? 'Game Over' : room.paused ? 'Paused' : room.status === 'PLAYING' ? 'Playing' : room.status;
 
   return (
     <section className="battle-play-panel" aria-label="Battle status">
@@ -54,7 +55,7 @@ export function BattleStatusPanel({ room, score, maxLevel, isGameOver }: BattleS
         <strong>{room.self?.nickname ?? '나'}</strong>
         <span>Score: {score.toLocaleString()}</span>
         <span>Max Level: {maxLevel}</span>
-        <span>Status: {isGameOver ? 'Game Over' : 'Playing'}</span>
+        <span>Status: {selfStatus}</span>
       </div>
 
       <div className="battle-versus">VS</div>

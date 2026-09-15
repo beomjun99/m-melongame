@@ -180,6 +180,18 @@ export default function App() {
     }
   }, [battle.result, selectedMode]);
 
+  useEffect(() => {
+    if (selectedMode === 'BATTLE' && battle.pauseSignal) {
+      setGameState('PAUSED');
+    }
+  }, [battle.pauseSignal, selectedMode]);
+
+  useEffect(() => {
+    if (selectedMode === 'BATTLE' && battle.resumeSignal && !battle.result) {
+      setGameState('PLAYING');
+    }
+  }, [battle.result, battle.resumeSignal, selectedMode]);
+
   const handleGameOver = useCallback(() => {
     if (selectedMode === 'BATTLE') {
       void battle.sendGameOver(score);
@@ -189,12 +201,22 @@ export default function App() {
   }, [battle, score, selectedMode]);
 
   const handlePause = useCallback(() => {
+    if (selectedMode === 'BATTLE') {
+      void battle.sendPause();
+      return;
+    }
+
     setGameState('PAUSED');
-  }, []);
+  }, [battle, selectedMode]);
 
   const handleResume = useCallback(() => {
+    if (selectedMode === 'BATTLE') {
+      void battle.sendResume();
+      return;
+    }
+
     setGameState('PLAYING');
-  }, []);
+  }, [battle, selectedMode]);
 
   const resetGame = useCallback(() => {
     const freshCurrentObject = getRandomSpawnObject();
@@ -242,12 +264,16 @@ export default function App() {
     setIsRestartConfirmOpen(true);
   }, []);
 
-  const handleGoToTitle = useCallback(() => {
+  const handleGoToTitle = useCallback(async () => {
+    if (selectedMode === 'BATTLE' && battle.room?.roomId) {
+      await battle.leaveRoom(score);
+    }
+
     resetGame();
     setSelectedMode(null);
     setIsThemeSettingsOpen(false);
     setGameState('READY');
-  }, [resetGame]);
+  }, [battle, resetGame, score, selectedMode]);
 
   const handleSaveTheme = useCallback(
     async (name: string, filesByLevel: Map<number, File>) => {
@@ -447,6 +473,7 @@ export default function App() {
       {gameState === 'GAME_OVER' && selectedMode === 'BATTLE' && battle.result && (
         <BattleResultModal
           result={battle.result}
+          notice={battle.disconnectNotice?.message ?? null}
           onGoToLobby={handleGoToTitle}
         />
       )}
