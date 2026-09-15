@@ -48,6 +48,7 @@ export default function App() {
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const lastSentBattleStateRef = useRef<string | null>(null);
+  const handledBattleStartRef = useRef<number | null>(null);
   const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
 
   const loadRankings = useCallback(async () => {
@@ -247,6 +248,19 @@ export default function App() {
     setGameState('PLAYING');
   }, [resetGame]);
 
+  useEffect(() => {
+    if (selectedMode !== 'BATTLE' || !battle.startSignal) {
+      return;
+    }
+
+    if (handledBattleStartRef.current === battle.startSignal.startedAt) {
+      return;
+    }
+
+    handledBattleStartRef.current = battle.startSignal.startedAt;
+    handleBattleStart(battle.startSignal);
+  }, [battle.startSignal, handleBattleStart, selectedMode]);
+
   const handleOpenThemeSettings = useCallback(() => {
     setIsThemeSettingsOpen(true);
     setThemeMessage(null);
@@ -274,6 +288,10 @@ export default function App() {
     setIsThemeSettingsOpen(false);
     setGameState('READY');
   }, [battle, resetGame, score, selectedMode]);
+
+  const handleRequestBattleRematch = useCallback(() => {
+    void battle.requestRematch();
+  }, [battle]);
 
   const handleSaveTheme = useCallback(
     async (name: string, filesByLevel: Map<number, File>) => {
@@ -418,7 +436,6 @@ export default function App() {
       ) : gameState === 'READY' && selectedMode === 'BATTLE' ? (
         <BattleLobby
           battle={battle}
-          onBattleStart={handleBattleStart}
           onBackToTitle={handleGoToTitle}
         />
       ) : (
@@ -473,8 +490,12 @@ export default function App() {
       {gameState === 'GAME_OVER' && selectedMode === 'BATTLE' && battle.result && (
         <BattleResultModal
           result={battle.result}
+          countdown={battle.countdown}
+          isRematchPending={Boolean(battle.room?.self?.rematchReady)}
           notice={battle.disconnectNotice?.message ?? null}
+          opponentRematchReady={Boolean(battle.room?.opponent?.rematchReady)}
           onGoToLobby={handleGoToTitle}
+          onRematch={handleRequestBattleRematch}
         />
       )}
 

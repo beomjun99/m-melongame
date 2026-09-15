@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react';
-import type { BattleStartPayload } from '../battle/battleTypes';
+import { useState } from 'react';
 import type { useBattle } from '../battle/useBattle';
 
 type BattleLobbyProps = {
   battle: ReturnType<typeof useBattle>;
-  onBattleStart: (payload: BattleStartPayload) => void;
   onBackToTitle: () => void;
 };
 
-export function BattleLobby({ battle, onBattleStart, onBackToTitle }: BattleLobbyProps) {
+export function BattleLobby({ battle, onBackToTitle }: BattleLobbyProps) {
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const {
@@ -20,8 +18,7 @@ export function BattleLobby({ battle, onBattleStart, onBackToTitle }: BattleLobb
     joinRoom,
     markReady,
     room,
-    socketUrl,
-    startSignal
+    socketUrl
   } = battle;
   const connectionLabel = {
     CONNECTING: '연결 중',
@@ -30,12 +27,6 @@ export function BattleLobby({ battle, onBattleStart, onBackToTitle }: BattleLobb
   }[connectionStatus];
   const canSubmit = connectionStatus === 'CONNECTED' && !isRoomActionPending && nickname.trim().length > 0;
   const canReady = room?.status === 'READY' && !room.self?.ready && !isRoomActionPending;
-
-  useEffect(() => {
-    if (startSignal) {
-      onBattleStart(startSignal);
-    }
-  }, [onBattleStart, startSignal]);
 
   return (
     <section className="battle-lobby" aria-label="Battle mode">

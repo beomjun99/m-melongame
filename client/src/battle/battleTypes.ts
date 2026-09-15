@@ -3,6 +3,7 @@ export type BattleStatus = 'WAITING' | 'READY' | 'PLAYING' | 'FINISHED';
 export type BattlePlayerState = {
   nickname: string;
   ready: boolean;
+  rematchReady: boolean;
   score: number;
   maxLevel: number;
   gameOver: boolean;

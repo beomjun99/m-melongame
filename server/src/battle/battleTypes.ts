@@ -4,6 +4,7 @@ export type BattlePlayer = {
   socketId: string;
   nickname: string;
   ready: boolean;
+  rematchReady: boolean;
   gameOver: boolean;
   score: number;
   maxLevel: number;
@@ -24,6 +25,7 @@ export type BattleRoom = {
 export type BattlePlayerState = {
   nickname: string;
   ready: boolean;
+  rematchReady: boolean;
   score: number;
   maxLevel: number;
   gameOver: boolean;

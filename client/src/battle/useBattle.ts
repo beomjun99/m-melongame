@@ -322,6 +322,35 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
     [enabled, room, socket]
   );
 
+  const requestRematch = useMemo(
+    () => async () => {
+      if (!enabled || !socket.connected || !room?.roomId || room.status !== 'FINISHED') {
+        return false;
+      }
+
+      setIsRoomActionPending(true);
+      setErrorMessage(null);
+
+      try {
+        const response = await socket.timeout(5000).emitWithAck(SOCKET_EVENTS.REMATCH) as BattleActionResponse;
+
+        if (!response.ok) {
+          setErrorMessage(response.error);
+          return false;
+        }
+
+        setRoom(response.room);
+        return true;
+      } catch {
+        setErrorMessage('배틀 서버 응답이 없습니다. API 서버 상태를 확인해주세요.');
+        return false;
+      } finally {
+        setIsRoomActionPending(false);
+      }
+    },
+    [enabled, room, socket]
+  );
+
   return useMemo(
     () => ({
       connectionStatus,
@@ -335,6 +364,7 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       leaveRoom,
       markReady,
       pauseSignal,
+      requestRematch,
       result,
       resumeSignal,
       room,
@@ -358,6 +388,7 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
       markReady,
       pauseSignal,
       requestRoomAction,
+      requestRematch,
       result,
       resumeSignal,
       room,

@@ -18,6 +18,7 @@ import {
   removePlayerFromBattleRoom,
   setBattlePaused,
   setPlayerReady,
+  setPlayerRematchReady,
   toBattleRoomState,
   updatePlayerBattleState
 } from './battleRoomManager.js';
@@ -384,7 +385,19 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       }
 
       if (room.status !== 'PLAYING') {
+        const opponent = room.players.find((player) => player.socketId !== socket.id) ?? null;
+        const leavingPlayer = room.players.find((player) => player.socketId === socket.id) ?? null;
         const updatedRoom = removePlayerFromBattleRoom(socket.id);
+
+        if (opponent && leavingPlayer) {
+          const disconnectedPayload: BattlePlayerDisconnectedPayload = {
+            roomId: room.roomId,
+            nickname: leavingPlayer.nickname,
+            message: '상대방이 로비로 이동했습니다.'
+          };
+
+          battleNamespace.to(opponent.socketId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, disconnectedPayload);
+        }
 
         if (updatedRoom) {
           emitRoomUpdate(battleNamespace, updatedRoom);
@@ -419,6 +432,19 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       callback?.({ ok: true });
     });
 
+    socket.on(SOCKET_EVENTS.REMATCH, (callback?: (response: BattleActionResponse) => void) => {
+      const result = setPlayerRematchReady(socket.id);
+
+      if (!result.room) {
+        callback?.({ ok: false, error: result.error ?? '재경기를 신청할 수 없습니다.' });
+        return;
+      }
+
+      callback?.(toActionResponse(result.room, socket.id));
+      emitRoomUpdate(battleNamespace, result.room);
+      startCountdown(battleNamespace, result.room);
+    });
+
     socket.on('disconnect', async (reason) => {
       const previousRoom = getRoomForSocket(socket.id);
 
@@ -450,6 +476,21 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
         void socket.leave(previousRoom.roomId);
         console.log(`Battle socket disconnected: ${socket.id} (${reason})`);
         return;
+      }
+
+      if (previousRoom?.status === 'FINISHED') {
+        const opponent = previousRoom.players.find((player) => player.socketId !== socket.id) ?? null;
+        const disconnectedPlayer = previousRoom.players.find((player) => player.socketId === socket.id) ?? null;
+
+        if (opponent && disconnectedPlayer) {
+          const disconnectedPayload: BattlePlayerDisconnectedPayload = {
+            roomId: previousRoom.roomId,
+            nickname: disconnectedPlayer.nickname,
+            message: '상대방 연결이 종료되었습니다.'
+          };
+
+          battleNamespace.to(opponent.socketId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, disconnectedPayload);
+        }
       }
 
       const updatedRoom = removePlayerFromBattleRoom(socket.id);
