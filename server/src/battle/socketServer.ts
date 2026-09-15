@@ -4,9 +4,11 @@ import { Server } from 'socket.io';
 import { env } from '../config/env.js';
 import { getAttackLevel } from './attackConfig.js';
 import { SOCKET_EVENTS } from './battleEvents.js';
+import { saveBattleResult } from './battleResultService.js';
 import {
   canStartCountdown,
   createBattleRoom,
+  finishBattleByGameOver,
   getRoomForSocket,
   joinBattleRoom,
   markCountdownStarted,
@@ -20,8 +22,10 @@ import type {
   BattleActionResponse,
   BattleAttackPayload,
   BattleCountdownPayload,
+  BattleGameOverPayload,
   BattleMergePayload,
   BattleRoom,
+  BattleResultPayload,
   BattleStatePayload,
   BattleStartPayload
 } from './battleTypes.js';
@@ -79,6 +83,27 @@ function normalizeStateMaxLevel(value: unknown) {
   }
 
   return maxLevel;
+}
+
+function emitBattleResult(namespace: Namespace, room: BattleRoom, winnerSocketId: string) {
+  for (const player of room.players) {
+    const opponent = room.players.find((roomPlayer) => roomPlayer.socketId !== player.socketId);
+    const winner = room.players.find((roomPlayer) => roomPlayer.socketId === winnerSocketId);
+
+    if (!opponent || !winner) {
+      continue;
+    }
+
+    const payload: BattleResultPayload = {
+      roomId: room.roomId,
+      outcome: player.socketId === winnerSocketId ? 'WIN' : 'LOSE',
+      winnerNickname: winner.nickname,
+      selfScore: player.score,
+      opponentScore: opponent.score
+    };
+
+    namespace.to(player.socketId).emit(SOCKET_EVENTS.RESULT, payload);
+  }
 }
 
 function clearCountdown(roomId: string) {
@@ -238,6 +263,39 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       }
 
       emitRoomUpdate(battleNamespace, result.room);
+      callback?.({ ok: true });
+    });
+
+    socket.on(SOCKET_EVENTS.GAME_OVER, async (payload: BattleGameOverPayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
+      const room = getRoomForSocket(socket.id);
+
+      if (!room || room.roomId !== payload?.roomId) {
+        callback?.({ ok: false, error: '참가 중인 방의 gameOver 이벤트만 보낼 수 있습니다.' });
+        return;
+      }
+
+      const score = normalizeStateScore(payload.score);
+
+      if (score === null) {
+        callback?.({ ok: false, error: '잘못된 score 값입니다.' });
+        return;
+      }
+
+      const result = finishBattleByGameOver(socket.id, score);
+
+      if (!result.room || !result.winner) {
+        callback?.({ ok: false, error: result.error ?? 'Battle 결과를 확정할 수 없습니다.' });
+        return;
+      }
+
+      try {
+        await saveBattleResult(result.room, result.winner);
+      } catch (error) {
+        console.error('Failed to save battle result.', error);
+      }
+
+      emitRoomUpdate(battleNamespace, result.room);
+      emitBattleResult(battleNamespace, result.room, result.winner.socketId);
       callback?.({ ok: true });
     });
 

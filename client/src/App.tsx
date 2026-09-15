@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BattleLobby } from './components/BattleLobby';
 import type { BattleStartPayload } from './battle/battleTypes';
 import { useBattle } from './battle/useBattle';
+import { BattleResultModal } from './components/BattleResultModal';
 import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
@@ -173,9 +174,19 @@ export default function App() {
     });
   }, [battle, gameState, maxLevel, score, selectedMode]);
 
+  useEffect(() => {
+    if (selectedMode === 'BATTLE' && battle.result) {
+      setGameState('GAME_OVER');
+    }
+  }, [battle.result, selectedMode]);
+
   const handleGameOver = useCallback(() => {
+    if (selectedMode === 'BATTLE') {
+      void battle.sendGameOver(score);
+    }
+
     setGameState('GAME_OVER');
-  }, []);
+  }, [battle, score, selectedMode]);
 
   const handlePause = useCallback(() => {
     setGameState('PAUSED');
@@ -433,7 +444,14 @@ export default function App() {
         </>
       )}
 
-      {gameState === 'GAME_OVER' && (
+      {gameState === 'GAME_OVER' && selectedMode === 'BATTLE' && battle.result && (
+        <BattleResultModal
+          result={battle.result}
+          onGoToLobby={handleGoToTitle}
+        />
+      )}
+
+      {gameState === 'GAME_OVER' && selectedMode !== 'BATTLE' && (
         <GameOverModal
           score={score}
           maxLevel={maxLevel}

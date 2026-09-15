@@ -52,3 +52,11 @@ export type BattleStatePayload = {
   maxLevel: number;
   gameOver: boolean;
 };
+
+export type BattleResultPayload = {
+  roomId: string;
+  outcome: 'WIN' | 'LOSE';
+  winnerNickname: string;
+  selfScore: number;
+  opponentScore: number;
+};

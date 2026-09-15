@@ -16,6 +16,8 @@ export type BattleRoom = {
   players: BattlePlayer[];
   createdAt: number;
   countdownStartedAt: number | null;
+  startedAt: number | null;
+  finishedAt: number | null;
 };
 
 export type BattlePlayerState = {
@@ -66,4 +68,17 @@ export type BattleStatePayload = {
   score?: unknown;
   maxLevel?: unknown;
   gameOver?: unknown;
+};
+
+export type BattleGameOverPayload = {
+  roomId?: unknown;
+  score?: unknown;
+};
+
+export type BattleResultPayload = {
+  roomId: string;
+  outcome: 'WIN' | 'LOSE';
+  winnerNickname: string;
+  selfScore: number;
+  opponentScore: number;
 };

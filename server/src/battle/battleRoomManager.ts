@@ -97,7 +97,9 @@ export function createBattleRoom(socketId: string, nicknameValue: unknown) {
     status: 'WAITING',
     players: [createPlayer(socketId, nickname)],
     createdAt: Date.now(),
-    countdownStartedAt: null
+    countdownStartedAt: null,
+    startedAt: null,
+    finishedAt: null
   };
 
   rooms.set(roomId, room);
@@ -217,6 +219,7 @@ export function markRoomPlaying(roomId: string) {
   }
 
   room.status = 'PLAYING';
+  room.startedAt = Date.now();
 
   return room;
 }
@@ -243,4 +246,34 @@ export function updatePlayerBattleState(socketId: string, score: number, maxLeve
   player.gameOver = gameOver;
 
   return { room, error: null };
+}
+
+export function finishBattleByGameOver(socketId: string, score: number) {
+  const room = getRoomForSocket(socketId);
+
+  if (!room) {
+    return { room: null, loser: null, winner: null, error: '참가 중인 방이 없습니다.' };
+  }
+
+  if (room.status !== 'PLAYING') {
+    return { room: null, loser: null, winner: null, error: '게임이 진행 중일 때만 종료할 수 있습니다.' };
+  }
+
+  if (room.players.length !== MAX_PLAYERS_PER_ROOM) {
+    return { room: null, loser: null, winner: null, error: '두 플레이어가 모두 있어야 결과를 확정할 수 있습니다.' };
+  }
+
+  const loser = room.players.find((player) => player.socketId === socketId) ?? null;
+  const winner = room.players.find((player) => player.socketId !== socketId) ?? null;
+
+  if (!loser || !winner) {
+    return { room: null, loser: null, winner: null, error: '승패를 결정할 플레이어를 찾을 수 없습니다.' };
+  }
+
+  loser.score = score;
+  loser.gameOver = true;
+  room.status = 'FINISHED';
+  room.finishedAt = Date.now();
+
+  return { room, loser, winner, error: null };
 }

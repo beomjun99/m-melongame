@@ -211,6 +211,8 @@ export function ThemeSettings({
 
             setPendingFiles(new Map());
             setPreviewUrls(new Map());
+            setThemeName('');
+            setValidationMessage(null);
           }
         }}
       >

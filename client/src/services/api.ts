@@ -3,6 +3,14 @@ import type { GameTheme } from '../theme/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+function resolveAssetUrl(imageUrl: string | undefined) {
+  if (!imageUrl?.startsWith('/')) {
+    return imageUrl;
+  }
+
+  return new URL(imageUrl, API_BASE_URL || window.location.origin).toString();
+}
+
 export type RankingEntry = {
   rank: number;
   nickname: string;
@@ -59,7 +67,7 @@ function normalizeTheme(theme: GameTheme): GameTheme {
     ...theme,
     fruits: theme.fruits.map((skin) => ({
       ...skin,
-      imageUrl: skin.imageUrl?.startsWith('/') ? new URL(skin.imageUrl, API_BASE_URL).toString() : skin.imageUrl
+      imageUrl: resolveAssetUrl(skin.imageUrl)
     }))
   };
 }

@@ -560,6 +560,22 @@ body {
   margin: 0;
 }
 
+.battle-result-outcome {
+  margin: 0 0 16px;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.battle-result-outcome.win {
+  color: #16a34a;
+}
+
+.battle-result-outcome.lose {
+  color: #dc2626;
+}
+
 .result-list div {
   display: flex;
   justify-content: space-between;

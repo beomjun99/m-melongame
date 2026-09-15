@@ -39,4 +39,19 @@ create table if not exists theme_items (
   updated_at timestamptz not null default now(),
   unique (theme_id, level)
 );
+
+create table if not exists battle_results (
+  id bigserial primary key,
+  room_id varchar(20) not null,
+  player1_nickname varchar(40) not null,
+  player2_nickname varchar(40) not null,
+  winner_nickname varchar(40) not null,
+  player1_score integer not null check (player1_score >= 0),
+  player2_score integer not null check (player2_score >= 0),
+  started_at timestamptz not null,
+  finished_at timestamptz not null default now()
+);
+
+create index if not exists battle_results_finished_at_idx
+  on battle_results (finished_at desc);
 `;
