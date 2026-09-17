@@ -15,7 +15,8 @@ import type { GameState, MergeResult, ObjectLevelConfig } from '../game/types';
 import { getFruitSkin } from '../theme/config';
 import { preloadThemeImages } from '../theme/imageCache';
 import type { GameTheme } from '../theme/types';
-import { MobileControls, type MoveDirection } from '../controls/MobileControls';
+import { MobileControls } from '../controls/MobileControls';
+import { moveDropX, type MoveDirection } from '../controls/movement';
 import { CONTROL_CONFIG } from '../controls/config';
 import { DropGuide } from '../game/DropGuide';
 
@@ -279,10 +280,14 @@ export function GameBoard({
 
   const moveDropPosition = (direction: MoveDirection) => {
     if (gameState !== 'PLAYING' || gameStateRef.current !== 'PLAYING') {
-      return;
+      return false;
     }
-    const delta = direction === 'LEFT' ? -CONTROL_CONFIG.moveStep : CONTROL_CONFIG.moveStep;
-    setDropX((x) => clampDropX(x + delta, currentObject.radius, width));
+    const nextX = moveDropX({
+      x: dropX, direction, radius: currentObject.radius, boardWidth: width,
+      step: CONTROL_CONFIG.moveStep, wrapMovementEnabled: CONTROL_CONFIG.wrapMovementEnabled
+    });
+    setDropX(nextX);
+    return nextX > currentObject.radius && nextX < width - currentObject.radius;
   };
 
   const currentSkin = getFruitSkin(theme, currentObject.level);

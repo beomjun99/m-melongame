@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { startHoldRepeat } from '../client/src/controls/holdRepeat.ts';
 import { CONTROL_CONFIG } from '../client/src/controls/config.ts';
+import { moveDropX, type MoveDirection } from '../client/src/controls/movement.ts';
 
 // Deterministic clock exercising the same repeat scheduler as the pointer hook.
 let now = 0;
@@ -46,4 +47,25 @@ assert.equal(x, 180, 'A new hold must use its new direction');
 stop();
 stop();
 assert.equal(jobs.size, 0, 'Repeated cancellation must be safe');
-console.log('PASS: tap distance, hold delay, repeat interval, cancellation, direction change');
+for (const direction of ['LEFT', 'RIGHT'] as const) {
+  const radius = 22;
+  const right = 420 - radius;
+  const edge = direction === 'LEFT' ? radius : right;
+  const opposite = direction === 'LEFT' ? right : radius;
+  x = direction === 'LEFT' ? radius + 18 : right - 18;
+  const moveToEdge = (dir: MoveDirection) => {
+    x = moveDropX({ x, direction: dir, radius, boardWidth: 420, step: 6, wrapMovementEnabled: true });
+    return x > radius && x < right;
+  };
+  stop = startHoldRepeat(() => moveToEdge(direction), schedule);
+  advance(2000);
+  assert.equal(x, edge, 'Holding must stop at the first edge, without wrapping');
+  assert.equal(jobs.size, 0, 'No repeat timer should remain at the edge');
+  stop();
+  stop = startHoldRepeat(() => moveToEdge(direction), schedule);
+  assert.equal(x, opposite, 'Release and press again must wrap');
+  advance(2000);
+  assert.equal(x, opposite, 'The new hold must also stop at the opposite edge');
+  stop();
+}
+console.log('PASS: tap, hold timing/cancellation, both edge stops, release-and-press wrap');

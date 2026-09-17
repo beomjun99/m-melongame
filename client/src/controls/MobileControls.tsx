@@ -1,11 +1,11 @@
 import { useHoldMove } from './useHoldMove';
 
-export type MoveDirection = 'LEFT' | 'RIGHT';
+import type { MoveDirection } from './movement';
 
 type MobileControlsProps = {
   disabled: boolean;
   dropDisabled: boolean;
-  onMove: (direction: MoveDirection) => void;
+  onMove: (direction: MoveDirection) => boolean;
   onDrop: () => void;
 };
 
@@ -37,7 +37,7 @@ export function MobileControls({ disabled, dropDisabled, onMove, onDrop }: Mobil
       <button type="button" className="mobile-drop-button" disabled={disabled || dropDisabled} onClick={onDrop}>
         DROP
       </button>
-      <p>좌우 버튼을 꾹 누르면 연속 이동합니다. DROP으로 떨어뜨리세요.</p>
+      <p>꾹 누르면 끝에서 멈춥니다. 떼고 다시 누르면 반대편으로 이동합니다.</p>
     </div>
   );
 }

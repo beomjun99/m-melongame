@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type PointerEvent } from 'react';
 import { startHoldRepeat } from './holdRepeat';
-import type { MoveDirection } from './MobileControls';
+import type { MoveDirection } from './movement';
 
-export function useHoldMove(disabled: boolean, onMove: (direction: MoveDirection) => void) {
+export function useHoldMove(disabled: boolean, onMove: (direction: MoveDirection) => boolean) {
   const cancelRepeat = useRef<(() => void) | null>(null);
   const activePointer = useRef<number | null>(null);
   const move = useRef(onMove);
@@ -40,7 +40,8 @@ export function useHoldMove(disabled: boolean, onMove: (direction: MoveDirection
     event.currentTarget.setPointerCapture(event.pointerId);
     activePointer.current = event.pointerId;
     cancelRepeat.current = startHoldRepeat(() => {
-      if (!blocked.current && activePointer.current !== null) move.current(direction);
+      if (blocked.current || activePointer.current === null) return false;
+      return move.current(direction);
     });
   };
 

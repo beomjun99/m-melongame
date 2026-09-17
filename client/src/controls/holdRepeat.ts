@@ -7,16 +7,20 @@ const scheduleTimeout: Schedule = (callback, delay) => {
   return () => clearTimeout(timer);
 };
 
-export function startHoldRepeat(move: () => void, schedule: Schedule = scheduleTimeout) {
+// Returning false means this hold has reached its boundary and must await a new press.
+export function startHoldRepeat(move: () => boolean | void, schedule: Schedule = scheduleTimeout) {
   let active = true;
-  let cancel: () => void;
+  let cancel = () => {};
+  const step = () => {
+    if (move() === false) active = false;
+  };
   const repeat = () => {
     if (!active) return;
-    move();
-    cancel = schedule(repeat, CONTROL_CONFIG.repeatIntervalMs);
+    step();
+    if (active) cancel = schedule(repeat, CONTROL_CONFIG.repeatIntervalMs);
   };
-  move();
-  cancel = schedule(repeat, CONTROL_CONFIG.holdDelayMs);
+  step();
+  if (active) cancel = schedule(repeat, CONTROL_CONFIG.holdDelayMs);
   return () => {
     active = false;
     cancel();
