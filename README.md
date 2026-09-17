@@ -148,3 +148,15 @@ Battle 연결 테스트:
 현재 Battle MVP는 Matter.js 물리 시뮬레이션을 각 클라이언트에서 독립적으로 실행하는 client-authoritative 구조입니다.
 서버는 Room 참가 여부, PLAYING 상태 여부, merge level 범위, 짧은 시간 내 과도한 merge 이벤트 발생 여부만 검증합니다.
 경쟁 서비스로 확장할 경우 server-authoritative validation 또는 리플레이 검증이 추가로 필요합니다.
+
+## Phase 24 통합 점검
+
+API 서버와 PostgreSQL이 연결된 상태에서 다음 명령으로 핵심 통합 시나리오를 반복 검증할 수 있습니다.
+
+```bash
+npm run test:phase24
+```
+
+이 스모크 테스트는 Matter.js 합체와 공격 Ping-Pong 방지, 싱글 결과 저장과 랭킹 조회, Level 1~11 테마 업로드와 불러오기/삭제/이름 중복 차단, Battle Room 인원 제한, Ready/Countdown/Start, Level 2~5 공격, 일시정지, 승패와 DB 저장, 재경기, 연결 종료 처리를 확인합니다. 테스트 데이터는 실행이 끝날 때 삭제됩니다.
+
+브라우저에서는 별도로 싱글 게임 시작과 낙하 조작, 원형 스킨 렌더링, Next 패널, 일시정지 모달, 랭킹 Refresh, 스킨 설정 미리보기와 Battle Lobby 화면을 확인합니다.
