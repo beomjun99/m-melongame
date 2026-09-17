@@ -15,6 +15,9 @@ import type { GameState, MergeResult, ObjectLevelConfig } from '../game/types';
 import { getFruitSkin } from '../theme/config';
 import { preloadThemeImages } from '../theme/imageCache';
 import type { GameTheme } from '../theme/types';
+import { MobileControls, type MoveDirection } from '../controls/MobileControls';
+import { CONTROL_CONFIG } from '../controls/config';
+import { DropGuide } from '../game/DropGuide';
 
 type AttackFruitRequest = {
   id: number;
@@ -226,20 +229,27 @@ export function GameBoard({
     };
   }, [height, width]);
 
-  const updateDropPosition = (event: PointerEvent<HTMLDivElement>) => {
+  const getPointerX = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const localX = event.clientX - bounds.left;
-    setDropX(clampDropX(localX, currentObject.radius, width));
+    const localX = (event.clientX - bounds.left) * width / bounds.width;
+    return clampDropX(localX, currentObject.radius, width);
   };
 
-  const dropObject = () => {
+  const updateDropPosition = (event: PointerEvent<HTMLDivElement>) => {
+    if (!allowsBoardPointer(event) || gameState !== 'PLAYING' || !event.isPrimary) {
+      return;
+    }
+    setDropX(getPointerX(event));
+  };
+
+  const dropObject = (x: number) => {
     const engine = engineRef.current;
 
-    if (!engine || !canDrop || gameStateRef.current !== 'PLAYING') {
+    if (!engine || !canDrop || cooldownTimerRef.current !== null || gameStateRef.current !== 'PLAYING') {
       return;
     }
 
-    const body = createObjectBody(currentObject, dropX, DROP_CONFIG.spawnY, getFruitSkin(themeRef.current, currentObject.level));
+    const body = createObjectBody(currentObject, x, DROP_CONFIG.spawnY, getFruitSkin(themeRef.current, currentObject.level));
     Composite.add(engine.world, body);
     onObjectDroppedRef.current(currentObject);
     setCanDrop(false);
@@ -254,6 +264,27 @@ export function GameBoard({
     }, DROP_CONFIG.cooldownMs);
   };
 
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!allowsBoardPointer(event) || !event.isPrimary || event.button !== 0 || gameState !== 'PLAYING') {
+      return;
+    }
+    const x = getPointerX(event);
+    setDropX(x);
+    dropObject(x);
+  };
+
+  // Touch/pen use the dedicated controls. Narrow screens use them even with a mouse.
+  const allowsBoardPointer = (event: PointerEvent<HTMLDivElement>) =>
+    event.pointerType === 'mouse' && !window.matchMedia('(max-width: 540px)').matches;
+
+  const moveDropPosition = (direction: MoveDirection) => {
+    if (gameState !== 'PLAYING' || gameStateRef.current !== 'PLAYING') {
+      return;
+    }
+    const delta = direction === 'LEFT' ? -CONTROL_CONFIG.moveStep : CONTROL_CONFIG.moveStep;
+    setDropX((x) => clampDropX(x + delta, currentObject.radius, width));
+  };
+
   const currentSkin = getFruitSkin(theme, currentObject.level);
 
   return (
@@ -261,26 +292,35 @@ export function GameBoard({
       <div
         className="game-board"
         ref={sceneRef}
-        style={{ width, height }}
+        style={{ maxWidth: width, aspectRatio: `${width} / ${height}` }}
         onPointerMove={updateDropPosition}
-        onPointerDown={dropObject}
+        onPointerDown={handlePointerDown}
       >
-        <div className="game-over-line" style={{ top: BOARD_CONFIG.gameOverLineY }} aria-hidden="true" />
+        <div className="game-over-line" style={{ top: `${BOARD_CONFIG.gameOverLineY / height * 100}%` }} aria-hidden="true" />
+        <DropGuide engineRef={engineRef} x={dropX} radius={currentObject.radius} width={width} height={height}
+          skin={currentSkin} visible={canDrop && gameState === 'PLAYING'} />
         <div
           className={`drop-preview ${canDrop && gameState === 'PLAYING' ? '' : 'drop-preview-disabled'}`}
           style={{
-            left: dropX,
-            top: DROP_CONFIG.previewY,
-            width: currentObject.radius * 2,
-            height: currentObject.radius * 2,
+            left: `${dropX / width * 100}%`,
+            top: `${DROP_CONFIG.previewY / height * 100}%`,
+            width: `${currentObject.radius * 2 / width * 100}%`,
+            height: `${currentObject.radius * 2 / height * 100}%`,
             backgroundColor: currentSkin.color,
-            backgroundImage: currentSkin.imageUrl ? `url(${currentSkin.imageUrl})` : undefined
           }}
           aria-hidden="true"
         >
-          {currentObject.level}
+          {currentSkin.imageUrl
+            ? <img key={currentSkin.imageUrl} src={currentSkin.imageUrl} alt="" draggable={false} />
+            : currentObject.level}
         </div>
       </div>
+      <MobileControls
+        disabled={gameState !== 'PLAYING'}
+        dropDisabled={!canDrop}
+        onMove={moveDropPosition}
+        onDrop={() => dropObject(clampDropX(dropX, currentObject.radius, width))}
+      />
     </section>
   );
 }

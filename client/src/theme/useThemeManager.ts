@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import { DEFAULT_THEME, mergeThemeWithDefault } from './config';
 import type { GameTheme } from './types';
+import { preloadThemeImages } from './imageCache';
 
 const SELECTED_THEME_STORAGE_KEY = 'm-melongame:selected-theme-id';
 
@@ -18,6 +19,7 @@ export function useThemeManager() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const applyTheme = useCallback((nextTheme: GameTheme) => {
     const mergedTheme = mergeThemeWithDefault(nextTheme);
@@ -47,11 +49,14 @@ export function useThemeManager() {
         const themeToApply = storedTheme ?? latestCompleteTheme;
 
         if (isActive && themeToApply) {
+          await preloadThemeImages(themeToApply.fruits.flatMap((skin) => skin.imageUrl ? [skin.imageUrl] : []));
+          if (!isActive) return;
           applyTheme(themeToApply);
           return;
         }
 
         const defaultThemeResponse = await getDefaultTheme();
+        await preloadThemeImages(defaultThemeResponse.theme.fruits.flatMap((skin) => skin.imageUrl ? [skin.imageUrl] : []));
 
         if (isActive) {
           setTheme(mergeThemeWithDefault(defaultThemeResponse.theme));
@@ -62,6 +67,8 @@ export function useThemeManager() {
           setTheme(DEFAULT_THEME);
           setSelectedThemeId(DEFAULT_THEME.id);
         }
+      } finally {
+        if (isActive) setIsLoading(false);
       }
     }
 
@@ -154,6 +161,7 @@ export function useThemeManager() {
   return useMemo(() => ({
     clearMessage: () => setMessage(null),
     isSaving,
+    isLoading,
     loadTheme,
     message,
     refreshThemes,
@@ -164,6 +172,7 @@ export function useThemeManager() {
     theme
   }), [
     isSaving,
+    isLoading,
     loadTheme,
     message,
     refreshThemes,

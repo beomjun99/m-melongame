@@ -71,16 +71,30 @@ export function preloadThemeImages(imageUrls: string[]) {
           }
 
           const image = new Image();
+          // A broken/slow asset must not leave the initial theme loading screen stuck.
+          const timeout = window.setTimeout(() => {
+            image.onload = null;
+            image.onerror = null;
+            resolve();
+          }, 8000);
+          const finish = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
           image.crossOrigin = 'anonymous';
           image.onload = () => {
             imageSizeCache.set(imageUrl, {
               width: image.naturalWidth || image.width,
               height: image.naturalHeight || image.height
             });
-            circularTextureCache.set(imageUrl, createCircularTexture(image));
-            resolve();
+            try {
+              circularTextureCache.set(imageUrl, createCircularTexture(image));
+            } catch {
+              // The DOM preview can still show an image that cannot be read by canvas.
+            }
+            finish();
           };
-          image.onerror = () => resolve();
+          image.onerror = finish;
           image.src = imageUrl;
         })
     )

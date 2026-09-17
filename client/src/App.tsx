@@ -16,6 +16,7 @@ import { getRandomSpawnObject } from './game/spawn';
 import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
 import { getRankings, saveGameResult, type RankingEntry } from './services/api';
 import { useThemeManager } from './theme/useThemeManager';
+import { useAppBack } from './navigation/useAppBack';
 
 function getObjectConfig(level: number) {
   return OBJECT_LEVELS.find((objectConfig) => objectConfig.level === level) ?? null;
@@ -225,6 +226,8 @@ export default function App() {
     resetGame();
     setSelectedMode(null);
     setIsThemeSettingsOpen(false);
+    setShowStartRankings(false);
+    setIsRestartConfirmOpen(false);
     setGameState('READY');
   }, [battle, resetGame, score, selectedMode]);
 
@@ -261,6 +264,25 @@ export default function App() {
     },
     [level11Count, loadRankings, maxLevel, score]
   );
+
+  useAppBack(gameState !== 'READY' || isThemeSettingsOpen || selectedMode === 'BATTLE' || showStartRankings, () => {
+    if (isRestartConfirmOpen) {
+      setIsRestartConfirmOpen(false);
+      if (gameState === 'PLAYING') handlePause();
+      return true;
+    }
+    if (gameState === 'PLAYING') {
+      handlePause();
+      return true;
+    }
+    if (gameState === 'PAUSED') return true;
+    void handleGoToTitle();
+    return false;
+  });
+
+  if (themes.isLoading) {
+    return <main className="app-shell"><p role="status">스킨을 준비하고 있습니다…</p></main>;
+  }
 
   return (
     <main className="app-shell">
