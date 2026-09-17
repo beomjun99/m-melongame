@@ -4,12 +4,13 @@
   "version": "0.1.0",
   "description": "Physics-based merge game MVP with React, Matter.js, Express, and PostgreSQL.",
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
-    "build": "npm run build --workspace client && npm run build --workspace server",
-    "typecheck": "npm run typecheck --workspace client && npm run typecheck --workspace server",
+    "dev": "npm run build --workspace shared && concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
+    "build": "npm run build --workspace shared && npm run build --workspace client && npm run build --workspace server",
+    "typecheck": "npm run typecheck --workspace shared && npm run typecheck --workspace client && npm run typecheck --workspace server",
     "test:phase24": "tsx scripts/phase24-smoke.ts"
   },
   "workspaces": [
+    "shared",
     "client",
     "server"
   ],

@@ -1,67 +1,37 @@
 import type { Server as HttpServer } from 'node:http';
-import type { Namespace } from 'socket.io';
 import { Server } from 'socket.io';
 import { env } from '../config/env.js';
 import { getAttackLevel } from './attackConfig.js';
+import { emitBattleResult, emitRoomUpdate, toActionResponse } from './battleBroadcaster.js';
+import { clearBattleCountdown, startBattleCountdown } from './battleCountdown.js';
 import { SOCKET_EVENTS } from './battleEvents.js';
 import { saveBattleResult } from './battleResultService.js';
 import { checkMergeRateLimit, clearMergeRateLimit } from './rateLimit.js';
 import {
-  canStartCountdown,
   createBattleRoom,
   finishBattleByDisconnect,
   finishBattleByGameOver,
   getRoomForSocket,
   joinBattleRoom,
-  markCountdownStarted,
-  markRoomPlaying,
   removePlayerFromBattleRoom,
   setBattlePaused,
   setPlayerReady,
   setPlayerRematchReady,
-  toBattleRoomState,
   updatePlayerBattleState
 } from './battleRoomManager.js';
 import type {
   BattleActionResponse,
   BattleAttackPayload,
-  BattleCountdownPayload,
   BattleGameOverPayload,
   BattleLeavePayload,
   BattleMergePayload,
   BattlePausePayload,
   BattlePauseRequestPayload,
   BattlePlayerDisconnectedPayload,
-  BattleRoom,
-  BattleResultPayload,
   BattleStatePayload,
-  BattleStartPayload
+  RoomCreatePayload,
+  RoomJoinPayload
 } from './battleTypes.js';
-
-type RoomCreatePayload = {
-  nickname?: unknown;
-};
-
-type RoomJoinPayload = {
-  roomId?: unknown;
-  nickname?: unknown;
-};
-
-const COUNTDOWN_STEPS: BattleCountdownPayload['value'][] = [3, 2, 1, 'START'];
-const countdownTimeouts = new Map<string, NodeJS.Timeout[]>();
-
-function emitRoomUpdate(namespace: Namespace, room: BattleRoom) {
-  for (const player of room.players) {
-    namespace.to(player.socketId).emit(SOCKET_EVENTS.ROOM_UPDATE, toBattleRoomState(room, player.socketId));
-  }
-}
-
-function toActionResponse(room: BattleRoom, socketId: string): BattleActionResponse {
-  return {
-    ok: true,
-    room: toBattleRoomState(room, socketId)
-  };
-}
 
 function normalizeMergeLevel(value: unknown) {
   const level = Number(value);
@@ -93,75 +63,6 @@ function normalizeStateMaxLevel(value: unknown) {
   return maxLevel;
 }
 
-function emitBattleResult(namespace: Namespace, room: BattleRoom, winnerSocketId: string) {
-  for (const player of room.players) {
-    const opponent = room.players.find((roomPlayer) => roomPlayer.socketId !== player.socketId);
-    const winner = room.players.find((roomPlayer) => roomPlayer.socketId === winnerSocketId);
-
-    if (!opponent || !winner) {
-      continue;
-    }
-
-    const payload: BattleResultPayload = {
-      roomId: room.roomId,
-      outcome: player.socketId === winnerSocketId ? 'WIN' : 'LOSE',
-      winnerNickname: winner.nickname,
-      selfScore: player.score,
-      opponentScore: opponent.score
-    };
-
-    namespace.to(player.socketId).emit(SOCKET_EVENTS.RESULT, payload);
-  }
-}
-
-function clearCountdown(roomId: string) {
-  const timers = countdownTimeouts.get(roomId);
-
-  if (!timers) {
-    return;
-  }
-
-  for (const timer of timers) {
-    clearTimeout(timer);
-  }
-
-  countdownTimeouts.delete(roomId);
-}
-
-function startCountdown(namespace: Namespace, room: BattleRoom) {
-  if (!canStartCountdown(room)) {
-    return;
-  }
-
-  markCountdownStarted(room);
-
-  const timers = COUNTDOWN_STEPS.map((value, index) => setTimeout(() => {
-    const payload: BattleCountdownPayload = { value };
-
-    namespace.to(room.roomId).emit(SOCKET_EVENTS.COUNTDOWN, payload);
-
-    if (value !== 'START') {
-      return;
-    }
-
-    const playingRoom = markRoomPlaying(room.roomId);
-    clearCountdown(room.roomId);
-
-    if (!playingRoom) {
-      return;
-    }
-
-    const startPayload: BattleStartPayload = {
-      roomId: playingRoom.roomId,
-      startedAt: Date.now()
-    };
-
-    namespace.to(playingRoom.roomId).emit(SOCKET_EVENTS.START, startPayload);
-    emitRoomUpdate(namespace, playingRoom);
-  }, index * 1000));
-
-  countdownTimeouts.set(room.roomId, timers);
-}
 
 export function initializeBattleSocketServer(httpServer: HttpServer) {
   const io = new Server(httpServer, {
@@ -211,7 +112,7 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
 
       callback?.(toActionResponse(result.room, socket.id));
       emitRoomUpdate(battleNamespace, result.room);
-      startCountdown(battleNamespace, result.room);
+      startBattleCountdown(battleNamespace, result.room);
     });
 
     socket.on(SOCKET_EVENTS.MERGE, (payload: BattleMergePayload, callback?: (response: { ok: boolean; error?: string }) => void) => {
@@ -442,7 +343,7 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
 
       callback?.(toActionResponse(result.room, socket.id));
       emitRoomUpdate(battleNamespace, result.room);
-      startCountdown(battleNamespace, result.room);
+      startBattleCountdown(battleNamespace, result.room);
     });
 
     socket.on('disconnect', async (reason) => {
@@ -451,7 +352,7 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       clearMergeRateLimit(socket.id);
 
       if (previousRoom?.status === 'PLAYING') {
-        clearCountdown(previousRoom.roomId);
+        clearBattleCountdown(previousRoom.roomId);
 
         const result = finishBattleByDisconnect(socket.id);
 
@@ -496,7 +397,7 @@ export function initializeBattleSocketServer(httpServer: HttpServer) {
       const updatedRoom = removePlayerFromBattleRoom(socket.id);
 
       if (previousRoom) {
-        clearCountdown(previousRoom.roomId);
+        clearBattleCountdown(previousRoom.roomId);
         void socket.leave(previousRoom.roomId);
       }
 

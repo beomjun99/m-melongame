@@ -10,7 +10,7 @@ import type {
   BattlePlayerDisconnectedPayload,
   BattleResultPayload,
   BattleRoomState,
-  BattleStatePayload,
+  BattleStateUpdate,
   BattleStartPayload
 } from './battleTypes';
 import { createBattleSocket, getBattleSocketUrl } from './socket';
@@ -225,7 +225,7 @@ export function useBattle({ enabled = true }: UseBattleOptions = {}) {
   );
 
   const sendState = useMemo(
-    () => async (state: BattleStatePayload) => {
+    () => async (state: BattleStateUpdate) => {
       if (!enabled || !socket.connected || !room?.roomId || (room.status !== 'PLAYING' && room.status !== 'FINISHED')) {
         return false;
       }

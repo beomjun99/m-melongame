@@ -6,17 +6,23 @@ TypeScript, React, Matter.js, Express, PostgreSQL 기반의 물리 합체 게임
 
 ```text
 m-melongame/
+  shared/
+    src/              # Client/Server Battle 이벤트와 payload 계약
   client/
     src/
+      battle/
       components/
       game/
-      hooks/
       services/
+      theme/
   server/
     src/
+      battle/
       config/
       db/
+      repositories/
       routes/
+      services/
 ```
 
 ## 주요 패키지

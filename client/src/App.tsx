@@ -14,11 +14,8 @@ import { ThemeSettings } from './components/ThemeSettings';
 import { BOARD_CONFIG, OBJECT_LEVELS } from './game/config';
 import { getRandomSpawnObject } from './game/spawn';
 import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig } from './game/types';
-import { createTheme, deleteTheme, getDefaultTheme, getRankings, getThemes, saveGameResult, uploadThemeImage, type RankingEntry } from './services/api';
-import { DEFAULT_THEME, mergeThemeWithDefault } from './theme/config';
-import type { GameTheme } from './theme/types';
-
-const SELECTED_THEME_STORAGE_KEY = 'm-melongame:selected-theme-id';
+import { getRankings, saveGameResult, type RankingEntry } from './services/api';
+import { useThemeManager } from './theme/useThemeManager';
 
 function getObjectConfig(level: number) {
   return OBJECT_LEVELS.find((objectConfig) => objectConfig.level === level) ?? null;
@@ -42,14 +39,10 @@ export default function App() {
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [volume, setVolume] = useState(80);
   const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
-  const [theme, setTheme] = useState<GameTheme>(DEFAULT_THEME);
-  const [savedThemes, setSavedThemes] = useState<GameTheme[]>([]);
-  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
-  const [themeMessage, setThemeMessage] = useState<string | null>(null);
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
   const lastSentBattleStateRef = useRef<string | null>(null);
   const handledBattleStartRef = useRef<number | null>(null);
   const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
+  const themes = useThemeManager();
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -68,60 +61,6 @@ export default function App() {
   useEffect(() => {
     void loadRankings();
   }, [loadRankings]);
-
-  const applyTheme = useCallback((nextTheme: GameTheme) => {
-    const mergedTheme = mergeThemeWithDefault(nextTheme);
-
-    setTheme(mergedTheme);
-    setSelectedThemeId(mergedTheme.id);
-    window.localStorage.setItem(SELECTED_THEME_STORAGE_KEY, mergedTheme.id);
-  }, []);
-
-  const loadThemes = useCallback(async () => {
-    const response = await getThemes();
-    const themes = response.themes.map(mergeThemeWithDefault);
-
-    setSavedThemes(themes);
-
-    return themes;
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadInitialTheme() {
-      try {
-        const themes = await loadThemes();
-        const storedThemeId = window.localStorage.getItem(SELECTED_THEME_STORAGE_KEY);
-        const storedTheme = storedThemeId ? themes.find((savedTheme) => savedTheme.id === storedThemeId) : null;
-        const latestCompleteTheme = themes.find((savedTheme) => savedTheme.fruits.every((skin) => Boolean(skin.imageUrl)));
-        const themeToApply = storedTheme ?? latestCompleteTheme;
-
-        if (isActive && themeToApply) {
-          applyTheme(themeToApply);
-          return;
-        }
-
-        const defaultThemeResponse = await getDefaultTheme();
-
-        if (isActive) {
-          setTheme(mergeThemeWithDefault(defaultThemeResponse.theme));
-          setSelectedThemeId(defaultThemeResponse.theme.id);
-        }
-      } catch {
-        if (isActive) {
-          setTheme(DEFAULT_THEME);
-          setSelectedThemeId(DEFAULT_THEME.id);
-        }
-      }
-    }
-
-    void loadInitialTheme();
-
-    return () => {
-      isActive = false;
-    };
-  }, [applyTheme, loadThemes]);
 
   const handleMerge = useCallback((result: MergeResult) => {
     setScore((currentScore) => currentScore + result.score);
@@ -263,10 +202,10 @@ export default function App() {
 
   const handleOpenThemeSettings = useCallback(() => {
     setIsThemeSettingsOpen(true);
-    setThemeMessage(null);
-    void loadThemes();
+    themes.clearMessage();
+    void themes.refreshThemes();
     setGameState('READY');
-  }, [loadThemes]);
+  }, [themes]);
 
   const handleRestart = useCallback(() => {
     resetGame();
@@ -292,90 +231,6 @@ export default function App() {
   const handleRequestBattleRematch = useCallback(() => {
     void battle.requestRematch();
   }, [battle]);
-
-  const handleSaveTheme = useCallback(
-    async (name: string, filesByLevel: Map<number, File>) => {
-      setIsSavingTheme(true);
-      setThemeMessage(null);
-
-      try {
-        const createdTheme = await createTheme(name);
-        let nextTheme = createdTheme.theme;
-
-        for (const [level, file] of filesByLevel) {
-          const response = await uploadThemeImage(nextTheme.id, level as ObjectLevel, file);
-          nextTheme = mergeThemeWithDefault(response.theme);
-        }
-
-        setTheme(nextTheme);
-        setSelectedThemeId(nextTheme.id);
-        window.localStorage.setItem(SELECTED_THEME_STORAGE_KEY, nextTheme.id);
-        setSavedThemes((currentThemes) => [
-          nextTheme,
-          ...currentThemes.filter((savedTheme) => savedTheme.id !== nextTheme.id)
-        ]);
-        void loadThemes();
-        setThemeMessage('스킨을 저장했습니다.');
-        return true;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-        setThemeMessage(`스킨 저장에 실패했습니다. ${message}`);
-        return false;
-      } finally {
-        setIsSavingTheme(false);
-      }
-    },
-    [loadThemes]
-  );
-
-  const handleLoadTheme = useCallback((themeId: string) => {
-    const nextTheme = savedThemes.find((savedTheme) => savedTheme.id === themeId);
-
-    if (!nextTheme) {
-      setThemeMessage('선택한 라인업을 찾을 수 없습니다.');
-      return;
-    }
-
-    applyTheme(nextTheme);
-    setThemeMessage(`${nextTheme.name} 라인업을 불러왔습니다.`);
-  }, [applyTheme, savedThemes]);
-
-  const handleDeleteTheme = useCallback(async (themeId: string) => {
-    const themeToDelete = savedThemes.find((savedTheme) => savedTheme.id === themeId);
-
-    if (!themeToDelete) {
-      setThemeMessage('삭제할 라인업을 찾을 수 없습니다.');
-      return;
-    }
-
-    setIsSavingTheme(true);
-    setThemeMessage(null);
-
-    try {
-      await deleteTheme(themeId);
-      const nextThemes = await loadThemes();
-      const nextTheme = nextThemes.find((savedTheme) => savedTheme.id === selectedThemeId)
-        ?? nextThemes.find((savedTheme) => savedTheme.fruits.every((skin) => Boolean(skin.imageUrl)))
-        ?? null;
-
-      if (themeId === selectedThemeId) {
-        if (nextTheme) {
-          applyTheme(nextTheme);
-        } else {
-          setTheme(DEFAULT_THEME);
-          setSelectedThemeId(DEFAULT_THEME.id);
-          window.localStorage.removeItem(SELECTED_THEME_STORAGE_KEY);
-        }
-      }
-
-      setThemeMessage(`${themeToDelete.name} 라인업을 삭제했습니다.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-      setThemeMessage(`라인업 삭제에 실패했습니다. ${message}`);
-    } finally {
-      setIsSavingTheme(false);
-    }
-  }, [applyTheme, loadThemes, savedThemes, selectedThemeId]);
 
   const handleSaveResult = useCallback(
     async (nickname: string) => {
@@ -411,15 +266,15 @@ export default function App() {
     <main className="app-shell">
       {gameState === 'READY' && isThemeSettingsOpen ? (
         <ThemeSettings
-          theme={theme}
-          savedThemes={savedThemes}
-          selectedThemeId={selectedThemeId}
-          isSaving={isSavingTheme}
-          message={themeMessage}
+          theme={themes.theme}
+          savedThemes={themes.savedThemes}
+          selectedThemeId={themes.selectedThemeId}
+          isSaving={themes.isSaving}
+          message={themes.message}
           onBack={handleGoToTitle}
-          onDeleteTheme={handleDeleteTheme}
-          onLoadTheme={handleLoadTheme}
-          onSave={handleSaveTheme}
+          onDeleteTheme={themes.removeTheme}
+          onLoadTheme={themes.loadTheme}
+          onSave={themes.saveTheme}
         />
       ) : gameState === 'READY' && selectedMode !== 'BATTLE' ? (
         <StartScreen
@@ -463,7 +318,7 @@ export default function App() {
                 gameState={gameState}
                 currentObject={currentObject}
                 attackFruit={selectedMode === 'BATTLE' ? validAttackFruit : null}
-                theme={theme}
+                theme={themes.theme}
                 onGameOver={handleGameOver}
                 onMerge={handleMerge}
                 onObjectDropped={handleObjectDropped}
@@ -472,7 +327,7 @@ export default function App() {
 
             <GameSidePanel
               upcomingObject={upcomingObject}
-              theme={theme}
+              theme={themes.theme}
               onPause={handlePause}
               onRequestRestart={handleRequestRestart}
             />
