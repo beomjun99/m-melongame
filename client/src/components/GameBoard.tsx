@@ -19,6 +19,7 @@ import { MobileControls } from '../controls/MobileControls';
 import { moveDropX, type MoveDirection } from '../controls/movement';
 import { CONTROL_CONFIG } from '../controls/config';
 import { DropGuide } from '../game/DropGuide';
+import type { ControlSettings } from '../settings/useControlSettings';
 
 type AttackFruitRequest = {
   id: number;
@@ -26,6 +27,7 @@ type AttackFruitRequest = {
 };
 
 type GameBoardProps = {
+  controlSettings: ControlSettings;
   width: number;
   height: number;
   gameState: GameState;
@@ -38,6 +40,7 @@ type GameBoardProps = {
 };
 
 export function GameBoard({
+  controlSettings,
   width,
   height,
   gameState,
@@ -284,7 +287,7 @@ export function GameBoard({
     }
     const nextX = moveDropX({
       x: dropX, direction, radius: currentObject.radius, boardWidth: width,
-      step: CONTROL_CONFIG.moveStep, wrapMovementEnabled: CONTROL_CONFIG.wrapMovementEnabled
+      step: CONTROL_CONFIG.moveStep, wrapMovementEnabled: controlSettings.wrapMovementEnabled
     });
     setDropX(nextX);
     return nextX > currentObject.radius && nextX < width - currentObject.radius;
@@ -321,6 +324,7 @@ export function GameBoard({
         </div>
       </div>
       <MobileControls
+        settings={controlSettings}
         disabled={gameState !== 'PLAYING'}
         dropDisabled={!canDrop}
         onMove={moveDropPosition}

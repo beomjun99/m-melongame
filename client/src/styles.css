@@ -332,6 +332,21 @@ body {
   gap: 12px;
 }
 
+.mobile-controls.arrows-right {
+  grid-template-columns: auto 1fr;
+}
+
+.mobile-controls.arrows-right .mobile-move-buttons {
+  grid-column: 2;
+  grid-row: 1;
+  justify-content: flex-end;
+}
+
+.mobile-controls.arrows-right .mobile-drop-button {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .mobile-move-buttons button,
 .mobile-drop-button {
   min-width: 60px;
@@ -524,6 +539,9 @@ body {
 }
 
 .pause-modal {
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   width: min(380px, 100%);
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -635,6 +653,40 @@ body {
   display: grid;
   gap: 10px;
   margin: 0;
+}
+
+.control-settings {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 0 18px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.control-settings legend {
+  font-weight: 700;
+}
+
+.control-settings label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.control-settings input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.control-settings p {
+  margin: 0 0 8px 30px;
+  font-size: 13px;
+  color: #475569;
 }
 
 .drop-guide-line {

@@ -17,6 +17,7 @@ import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig }
 import { getRankings, saveGameResult, type RankingEntry } from './services/api';
 import { useThemeManager } from './theme/useThemeManager';
 import { useAppBack } from './navigation/useAppBack';
+import { useControlSettings } from './settings/useControlSettings';
 
 function getObjectConfig(level: number) {
   return OBJECT_LEVELS.find((objectConfig) => objectConfig.level === level) ?? null;
@@ -44,6 +45,7 @@ export default function App() {
   const handledBattleStartRef = useRef<number | null>(null);
   const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
   const themes = useThemeManager();
+  const controls = useControlSettings();
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -334,6 +336,7 @@ export default function App() {
               />
 
               <GameBoard
+                controlSettings={controls.settings}
                 key={gameId}
                 width={BOARD_CONFIG.width}
                 height={BOARD_CONFIG.height}
@@ -390,6 +393,8 @@ export default function App() {
 
       {gameState === 'PAUSED' && (
         <PauseModal
+          controlSettings={controls.settings}
+          onChangeControlSettings={controls.updateSettings}
           volume={volume}
           onChangeVolume={setVolume}
           onResume={handleResume}

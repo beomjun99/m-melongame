@@ -1,18 +1,20 @@
 import { useHoldMove } from './useHoldMove';
 
 import type { MoveDirection } from './movement';
+import type { ControlSettings } from '../settings/useControlSettings';
 
 type MobileControlsProps = {
+  settings: ControlSettings;
   disabled: boolean;
   dropDisabled: boolean;
   onMove: (direction: MoveDirection) => boolean;
   onDrop: () => void;
 };
 
-export function MobileControls({ disabled, dropDisabled, onMove, onDrop }: MobileControlsProps) {
+export function MobileControls({ settings, disabled, dropDisabled, onMove, onDrop }: MobileControlsProps) {
   const hold = useHoldMove(disabled, onMove);
   return (
-    <div className="mobile-controls" role="group" aria-label="모바일 조작">
+    <div className={`mobile-controls ${settings.controlLayout === 'ARROWS_RIGHT' ? 'arrows-right' : ''}`} role="group" aria-label="모바일 조작">
       <div className="mobile-move-buttons" role="group" aria-label="낙하 위치 조절">
         {(['LEFT', 'RIGHT'] as const).map((direction) => (
           <button
@@ -37,7 +39,9 @@ export function MobileControls({ disabled, dropDisabled, onMove, onDrop }: Mobil
       <button type="button" className="mobile-drop-button" disabled={disabled || dropDisabled} onClick={onDrop}>
         DROP
       </button>
-      <p>꾹 누르면 끝에서 멈춥니다. 떼고 다시 누르면 반대편으로 이동합니다.</p>
+      <p>{settings.wrapMovementEnabled
+        ? '꾹 누르면 끝에서 멈춥니다. 떼고 다시 누르면 반대편으로 이동합니다.'
+        : '꾹 누르면 끝에서 멈춥니다. DROP으로 떨어뜨리세요.'}</p>
     </div>
   );
 }
