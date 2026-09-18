@@ -17,7 +17,7 @@ import type { GameMode, GameState, MergeResult, ObjectLevel, ObjectLevelConfig }
 import { getRankings, saveGameResult, type RankingEntry } from './services/api';
 import { useThemeManager } from './theme/useThemeManager';
 import { useAppBack } from './navigation/useAppBack';
-import { useControlSettings } from './settings/useControlSettings';
+import { useGameSettings } from './settings/useGameSettings';
 
 function getObjectConfig(level: number) {
   return OBJECT_LEVELS.find((objectConfig) => objectConfig.level === level) ?? null;
@@ -39,13 +39,12 @@ export default function App() {
   const [showStartRankings, setShowStartRankings] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSavingResult, setIsSavingResult] = useState(false);
-  const [volume, setVolume] = useState(80);
   const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
   const lastSentBattleStateRef = useRef<string | null>(null);
   const handledBattleStartRef = useRef<number | null>(null);
   const battle = useBattle({ enabled: selectedMode === 'BATTLE' });
   const themes = useThemeManager();
-  const controls = useControlSettings();
+  const controls = useGameSettings();
 
   const loadRankings = useCallback(async () => {
     setIsRankingLoading(true);
@@ -395,8 +394,8 @@ export default function App() {
         <PauseModal
           controlSettings={controls.settings}
           onChangeControlSettings={controls.updateSettings}
-          volume={volume}
-          onChangeVolume={setVolume}
+          volume={Math.round(controls.settings.bgmVolume * 100)}
+          onChangeVolume={(value) => controls.updateSettings({ bgmVolume: value / 100, sfxVolume: value / 100 })}
           onResume={handleResume}
           onRestart={handleRequestRestart}
           onGoToTitle={handleGoToTitle}

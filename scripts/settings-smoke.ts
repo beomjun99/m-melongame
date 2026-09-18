@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { DEFAULT_GAME_SETTINGS, loadGameSettings, saveGameSettings, normalizeSettings } from '../client/src/settings/settingsService.ts';
+
+let stored: string | null = null;
+const storage = () => ({ getItem: () => stored, setItem: (_key: string, value: string) => { stored = value; } });
+assert.deepEqual(loadGameSettings(storage), DEFAULT_GAME_SETTINGS);
+const settings = { controlLayout: 'ARROWS_RIGHT' as const, wrapMovementEnabled: false, bgmVolume: 0, sfxVolume: 0.35 };
+assert.equal(saveGameSettings(settings, storage), true);
+assert.deepEqual(loadGameSettings(storage), settings, 'Reload must preserve false and zero values');
+stored = '{invalid';
+assert.deepEqual(loadGameSettings(storage), DEFAULT_GAME_SETTINGS);
+stored = JSON.stringify({ version: 1, settings: { controlLayout: 'wrong', wrapMovementEnabled: 'false', bgmVolume: 20, sfxVolume: -2 } });
+assert.deepEqual(loadGameSettings(storage), { ...DEFAULT_GAME_SETTINGS, bgmVolume: 1, sfxVolume: 0 });
+stored = JSON.stringify({ version: 1, settings: { controlLayout: 'ARROWS_RIGHT' } });
+assert.deepEqual(loadGameSettings(storage), { ...DEFAULT_GAME_SETTINGS, controlLayout: 'ARROWS_RIGHT' });
+assert.equal(normalizeSettings({ bgmVolume: NaN }).bgmVolume, DEFAULT_GAME_SETTINGS.bgmVolume);
+const denied = () => { throw new Error('Storage denied'); };
+assert.deepEqual(loadGameSettings(denied), DEFAULT_GAME_SETTINGS);
+assert.equal(saveGameSettings(settings, denied), false);
+console.log('PASS: reload roundtrip, false/zero, corrupt/partial/invalid data, bounds, unavailable storage');

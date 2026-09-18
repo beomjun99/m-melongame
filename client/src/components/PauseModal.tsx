@@ -1,4 +1,4 @@
-import type { ControlSettings } from '../settings/useControlSettings';
+import type { ControlSettings } from '../settings/types';
 
 type PauseModalProps = {
   controlSettings: ControlSettings;

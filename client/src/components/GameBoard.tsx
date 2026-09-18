@@ -19,7 +19,7 @@ import { MobileControls } from '../controls/MobileControls';
 import { moveDropX, type MoveDirection } from '../controls/movement';
 import { CONTROL_CONFIG } from '../controls/config';
 import { DropGuide } from '../game/DropGuide';
-import type { ControlSettings } from '../settings/useControlSettings';
+import type { ControlSettings } from '../settings/types';
 
 type AttackFruitRequest = {
   id: number;

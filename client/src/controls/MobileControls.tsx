@@ -1,7 +1,7 @@
 import { useHoldMove } from './useHoldMove';
 
 import type { MoveDirection } from './movement';
-import type { ControlSettings } from '../settings/useControlSettings';
+import type { ControlSettings } from '../settings/types';
 
 type MobileControlsProps = {
   settings: ControlSettings;
